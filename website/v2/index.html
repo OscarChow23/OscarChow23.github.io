@@ -529,7 +529,7 @@
       top: 20px;
       right: 20px;
       width: 220px;
-      display: flex;
+      display: none;
       flex-direction: column;
       gap: 12px;
       z-index: 10;
@@ -1155,6 +1155,7 @@
      * @param {number} j - precision grid index
      */
     function displayTrianglePlot(i, j) {
+      document.getElementById('metric-cards-top').style.display = 'flex';
       const img         = document.getElementById('triangle-image');
       const placeholder = document.getElementById('triangle-placeholder');
       const info        = document.getElementById('triangle-info');
