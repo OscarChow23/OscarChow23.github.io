@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NOvA+JUNO Crystal Ball</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
+  <style>
+    /* ============================================================
+       CSS CUSTOM PROPERTIES — Wellmetrix Warm Neutral Design System
+       ============================================================ */
+    :root {
+      /* --- Backgrounds --- */
+      --bg-page:           #f5f0eb;
+      --bg-card:           #ffffff;
+      --bg-card-hover:     #fdfcfb;
+      --bg-header:         #ffffff;
+      --bg-placeholder:    #f8f5f1;
+      --bg-toggle:         #e8e1d8;
+
+      /* --- Shadows --- */
+      --shadow-card:       0 2px 16px rgba(0, 0, 0, 0.07);
+      --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.11);
+
+      /* --- Border radius --- */
+      --radius-card:   16px;
+      --radius-btn:    9999px;
+      --radius-toggle: 9999px;
+      --radius-inner:  10px;
+
+      /* --- Accent: warm brown (Wellmetrix slider / CTA colour) --- */
+      --accent:         #7c6f5e;
+      --accent-dark:    #6a5e4f;
+      --accent-light:   #e8e1d8;
+      --accent-track:   #d6cdc2;
+
+      /* --- Typography colours --- */
+      --text-primary:  #333333;
+      --text-muted:    #999999;
+      --text-label:    #666666;
+      --text-on-accent:#ffffff;
+
+      /* --- Semantic colours for physics readouts --- */
+      --color-no:  #2d6fa3;   /* Normal ordering — blue */
+      --color-io:  #b84336;   /* Inverted ordering — red */
+
+      /* --- Borders --- */
+      --border-header: 1px solid #eeeeee;
+      --border-light:  1px solid #f0ebe4;
+
+      /* --- Spacing --- */
+      --padding-card: 24px;
+      --gap-grid:     20px;
+
+      /* --- Typography --- */
+      --font-main:            'DM Sans', 'Plus Jakarta Sans', system-ui, sans-serif;
+      --metric-font-size:     2.8rem;
+      --label-font-size:      0.72rem;
+      --label-letter-spacing: 0.06em;
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background-color: var(--bg-page);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding: 0 8px;
+    }
+
+    /* ============================================================
+       LOADING OVERLAY
+       ============================================================ */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-page);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      transition: opacity 0.4s ease;
+    }
+
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-content {
+      text-align: center;
+    }
+
+    .loading-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--accent-light);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: var(--text-label);
+      font-weight: 500;
+    }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    #header-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      height: 56px;
+      background: var(--bg-header);
+      border-bottom: var(--border-header);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .logo-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+      line-height: 1.2;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-link {
+      font-size: 13px;
+      color: var(--text-label);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+
+    .nav-link:hover {
+      color: var(--accent);
+    }
+
+    /* ============================================================
+       ERROR BANNER
+       ============================================================ */
+    #error-banner {
+      display: none;
+      background: #fff3f3;
+      border: 1px solid #ffcdd2;
+      border-radius: var(--radius-inner);
+      padding: 12px 16px;
+      margin: 8px 24px;
+      font-size: 13px;
+      color: #c62828;
+    }
+
+    #error-banner.visible {
+      display: block;
+    }
+
+    /* ============================================================
+       PAGE ROOT & MAIN LAYOUT
+       ============================================================ */
+    #page-root {
+      padding-top: 56px; /* clearance for fixed header */
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #main-content {
+      display: grid;
+      grid-template-columns: 15fr 40fr 45fr;
+      gap: var(--gap-grid);
+      padding: 12px 8px;
+      max-width: 100vw;
+      width: 100%;
+      margin: 0 auto;
+      flex: 1;
+      align-items: stretch;
+      height: calc(100vh - 56px - 50px);
+    }
+
+    #left-column,
+    #middle-column,
+    #right-column {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap-grid);
+      width: 100%;
+      min-height: 0;
+    }
+
+    #right-column {
+      gap: 8px;
+    }
+
+    /* ============================================================
+       CARD BASE
+       ============================================================ */
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: var(--padding-card);
+      transition: box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+
+    /* ============================================================
+       FIELD TOGGLE — pill segmented control
+       ============================================================ */
+    #field-toggle {
+      display: flex;
+      background: var(--bg-toggle);
+      border-radius: var(--radius-toggle);
+      padding: 3px;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    .toggle-btn {
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-toggle);
+      padding: 5px 11px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: var(--font-main);
+      color: var(--accent);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      color: var(--text-on-accent);
+    }
+
+    .toggle-btn:hover:not(.active) {
+      background: var(--accent-track);
+    }
+
+    /* ============================================================
+       HEATMAP CARD
+       ============================================================ */
+    #heatmap-card {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    #heatmap-container {
+      width: 100%;
+      flex: 1 1 auto;
+      aspect-ratio: 1;
+      max-height: 100%;
+      background: var(--bg-placeholder);
+      border-radius: var(--radius-inner);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin: 0 auto;
+    }
+
+    #heatmap-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      /* TODO Session 2: D3 heatmap rendering */
+    }
+
+    #heatmap-placeholder {
+      font-size: 13px;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ============================================================
+       SLIDERS CARD
+       ============================================================ */
+    #sliders-card {
+      flex: 1 1 auto;
+      min-height: 550px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slider-group {
+      margin-bottom: 22px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .slider-label {
+      font-size: var(--label-font-size);
+      font-weight: 600;
+      color: var(--text-label);
+      text-transform: uppercase;
+      letter-spacing: var(--label-letter-spacing);
+      line-height: 1;
+    }
+
+    .slider-readout-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 3px;
+    }
+
+    .slider-readout {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slider-unit {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* Custom range slider */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      /* filled-track gradient driven by --slider-fill CSS custom property */
+      background: linear-gradient(
+        to right,
+        var(--accent) 0%,
+        var(--accent) var(--slider-fill, 50%),
+        var(--accent-track) var(--slider-fill, 50%),
+        var(--accent-track) 100%
+      );
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2.5px solid white;
+      box-shadow: 0 1px 6px rgba(124, 111, 94, 0.45);
+      transition: transform 0.1s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2.5px solid white;
+      box-shadow: 0 1px 6px rgba(124, 111, 94, 0.45);
+    }
+
+    .slider-subtext {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .sliders-divider {
+      border: none;
+      border-top: var(--border-light);
+      margin: 22px 0;
+    }
+
+    /* Generate button */
+    #generate-btn {
+      display: block;
+      width: 100%;
+      padding: 13px 24px;
+      background: var(--accent);
+      color: var(--text-on-accent);
+      border: none;
+      border-radius: var(--radius-btn);
+      font-family: var(--font-main);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.01em;
+    }
+
+    #generate-btn:hover {
+      background: var(--accent-dark);
+    }
+
+    #generate-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Nearest grid-point info banner */
+    #nearest-info {
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: var(--bg-placeholder);
+      border-radius: var(--radius-inner);
+      font-size: 11.5px;
+      color: var(--text-label);
+      line-height: 1.55;
+      display: none;
+    }
+
+    #nearest-info.visible {
+      display: block;
+    }
+
+    /* ============================================================
+       METRIC CARDS — overlay in top-right of triangle card
+       ============================================================ */
+    #metric-cards-top {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: 16px 20px;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .metric-card:hover {
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .metric-label {
+      font-size: var(--label-font-size);
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: var(--label-letter-spacing);
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+
+    .metric-value {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-value.no-preference {
+      color: var(--color-no);
+    }
+
+    .metric-value.io-preference {
+      color: var(--color-io);
+    }
+
+    .metric-sublabel {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      margin-top: 5px;
+      font-weight: 400;
+    }
+
+    /* ============================================================
+       TRIANGLE CARD
+       ============================================================ */
+    #triangle-card {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      min-height: 600px;
+    }
+
+    #triangle-container {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 0;
+      background: var(--bg-placeholder);
+      border-radius: var(--radius-inner);
+      overflow: hidden;
+    }
+
+    #triangle-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 40px;
+    }
+
+    .placeholder-icon {
+      font-size: 40px;
+      opacity: 0.25;
+      line-height: 1;
+    }
+
+    .placeholder-text {
+      font-size: 12.5px;
+      line-height: 1.65;
+      max-width: 240px;
+    }
+
+    #triangle-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: var(--radius-inner);
+      display: none;
+    }
+
+    #triangle-image.visible {
+      display: block;
+    }
+
+    #triangle-info {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      min-height: 16px;
+    }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    #footer-bar {
+      background: var(--bg-card);
+      border-top: var(--border-header);
+      padding: 14px 28px;
+      margin-top: auto;
+    }
+
+    .footer-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .footer-content a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .footer-content a:hover {
+      text-decoration: underline;
+    }
+
+    /* ============================================================
+       RESPONSIVE: collapse to single column on narrow screens
+       ============================================================ */
+    @media (max-width: 900px) {
+      #main-content {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+
+      #metric-cards-top {
+        position: static;
+        width: 100%;
+        flex-direction: row;
+        margin-bottom: 16px;
+      }
+
+      #metric-cards-top .metric-card {
+        flex: 1 1 50%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== LOADING OVERLAY ===== -->
+  <div id="loading-overlay" role="status" aria-label="Loading data">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading crystal ball data…</div>
+    </div>
+  </div>
+
+  <div id="page-root">
+
+    <!-- ===== HEADER ===== -->
+    <nav id="header-bar" role="banner">
+      <div class="header-left">
+        <div class="logo-mark" aria-hidden="true">NJ</div>
+        <div>
+          <div class="logo-text">NOvA+JUNO</div>
+          <div class="logo-subtitle">Crystal Ball</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <!-- TODO Session 3C: link href values from config -->
+        <a class="nav-link" href="#" target="_blank" rel="noopener noreferrer">Paper (arXiv)</a>
+        <a class="nav-link" href="#" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </nav>
+
+    <!-- ===== ERROR BANNER ===== -->
+    <div id="error-banner" role="alert"></div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main id="main-content">
+
+      <!-- ==================== LEFT COLUMN ==================== -->
+      <div id="left-column">
+
+        <!-- Sliders card -->
+        <section class="card" id="sliders-card" aria-label="JUNO parameter controls">
+          <div class="card-header">
+            <div class="card-title">JUNO Measurement Parameters</div>
+          </div>
+
+          <!-- Slider 1: Δm²₃₂ central value -->
+          <div class="slider-group" id="dm32-group">
+            <div class="slider-header">
+              <label class="slider-label" for="slider-dm32">
+                Δm²₃₂ Central Value (NO)
+              </label>
+              <div class="slider-readout-wrap">
+                <span class="slider-readout" id="dm32-readout">—</span>
+                <span class="slider-unit">× 10⁻³ eV²</span>
+              </div>
+            </div>
+            <input
+              id="slider-dm32"
+              type="range"
+              min="2.25"
+              max="2.55"
+              step="0.001"
+              value="2.40"
+              aria-label="Δm²₃₂ central value under normal ordering assumption"
+            />
+            <div class="slider-subtext">Normal ordering assumption · range will update from data</div>
+          </div>
+
+          <hr class="sliders-divider" />
+
+          <!-- Slider 2: JUNO precision -->
+          <div class="slider-group" id="precision-group">
+            <div class="slider-header">
+              <label class="slider-label" for="slider-precision">
+                JUNO Precision on |Δm²₃₂|
+              </label>
+              <div class="slider-readout-wrap">
+                <span class="slider-readout" id="precision-readout">—</span>
+                <span class="slider-unit">%</span>
+              </div>
+            </div>
+            <input
+              id="slider-precision"
+              type="range"
+              min="0.2"
+              max="2.0"
+              step="0.01"
+              value="1.0"
+              aria-label="JUNO fractional precision on Δm²₃₂"
+            />
+            <div class="slider-subtext">Fractional precision on |Δm²₃₂| · range will update from data</div>
+          </div>
+
+          <!-- Generate button -->
+          <button id="generate-btn" type="button">
+            Generate Triangle Plot
+          </button>
+
+          <!-- Nearest grid-point indicator -->
+          <div id="nearest-info" role="status" aria-live="polite"></div>
+
+        </section>
+
+      </div><!-- /#left-column -->
+
+      <!-- ==================== MIDDLE COLUMN ==================== -->
+      <div id="middle-column">
+
+        <!-- Heatmap card -->
+        <section class="card" id="heatmap-card" aria-label="Crystal ball heatmap">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Crystal Ball Heatmap</div>
+              <div class="card-subtitle">NOvA+JUNO Bayes factor for each possible JUNO outcome</div>
+            </div>
+            <!-- Field toggle: pill segmented control -->
+            <div id="field-toggle" role="group" aria-label="Colour field selector">
+              <button class="toggle-btn active" data-field="log10_bf" type="button">log₁₀(BF)</button>
+              <button class="toggle-btn" data-field="sigma" type="button">σ</button>
+              <button class="toggle-btn" data-field="frac_rmse" type="button">Frac RMSE</button>
+            </div>
+          </div>
+
+          <!-- D3 SVG target; placeholder text removed by loadData() -->
+          <div id="heatmap-container">
+            <svg id="heatmap-svg" aria-label="Crystal ball heatmap plot">
+              <!-- TODO Session 2: D3 heatmap rendering -->
+            </svg>
+            <span id="heatmap-placeholder">Loading heatmap…</span>
+          </div>
+        </section>
+
+      </div><!-- /#middle-column -->
+
+      <!-- ==================== RIGHT COLUMN ==================== -->
+      <div id="right-column">
+
+        <!-- Triangle plot card (now contains the metric cards as overlay) -->
+        <section class="card" id="triangle-card" aria-label="NOvA posterior triangle plot">
+          <div class="card-header">
+            <div>
+              <div class="card-title">NOvA Posterior Triangle Plot</div>
+              <div class="card-subtitle" id="triangle-subtitle">
+                Select parameters and press Generate
+              </div>
+            </div>
+          </div>
+
+          <!-- Metric cards: absolute overlay in top-right -->
+          <div id="metric-cards-top">
+            <div class="metric-card" id="bf-card">
+              <div class="metric-label">Bayes Factor</div>
+              <div class="metric-value" id="bf-value">—</div>
+              <div class="metric-sublabel">NO / IO probability ratio</div>
+            </div>
+            <div class="metric-card" id="sigma-card">
+              <div class="metric-label">Significance</div>
+              <div class="metric-value" id="sigma-value">—</div>
+              <div class="metric-sublabel">Gaussian σ equivalent</div>
+            </div>
+          </div>
+
+          <div id="triangle-container">
+            <div id="triangle-placeholder">
+              <div class="placeholder-icon" aria-hidden="true">◎</div>
+              <div class="placeholder-text">
+                Adjust sliders and press <strong>Generate Triangle Plot</strong> to display the NOvA posterior for the selected JUNO outcome.
+              </div>
+            </div>
+            <img
+              id="triangle-image"
+              alt="NOvA posterior triangle plot for the selected JUNO measurement outcome"
+            />
+          </div>
+
+          <div id="triangle-info"></div>
+        </section>
+
+      </div><!-- /#right-column -->
+
+    </main><!-- /#main-content -->
+
+    <!-- ===== FOOTER ===== -->
+    <footer id="footer-bar">
+      <div class="footer-content">
+        <span>NOvA+JUNO Crystal Ball &middot; arXiv May 2026</span>
+        <span>NOvA Collaboration &middot; Public Release <!-- TODO Session 3C: add paper DOI link --></span>
+      </div>
+    </footer>
+
+  </div><!-- /#page-root -->
+
+  <script>
+    // ============================================================
+    // JUNO RESULT CONFIG
+    // Update dm32_no and precision to publish the result.
+    // Both must be non-null for the marker to appear.
+    // ============================================================
+    let JUNO_RESULT = {
+      dm32_no:   null,    // e.g. 2.41 — set when JUNO announces
+      precision: null,    // e.g. 0.40 — set when JUNO announces
+      label:     "JUNO 2026"
+    };
+
+    // Sigma iso-contour thresholds in log10_bf units.
+    // Derived by inverting bf_to_sigma: σ=1→BF≈6.83, σ=2→BF≈21.98, σ=3→BF≈369.4
+    const SIGMA_CONTOUR_THRESHOLDS = [
+      { sigma:  3, log10_bf:  2.5675 },
+      { sigma:  2, log10_bf:  1.3420 },
+      { sigma:  1, log10_bf:  0.8344 },
+      { sigma: -1, log10_bf: -0.8344 },
+      { sigma: -2, log10_bf: -1.3420 },
+      { sigma: -3, log10_bf: -2.5675 },
+    ];
+
+    // IO x-axis offset: IO central value = NO central value + LAMBDA_IO_OFFSET
+    const LAMBDA_IO_OFFSET = 0.12; // × 10⁻³ eV²
+
+    // ============================================================
+    // GLOBAL STATE
+    // ============================================================
+    let gridManifest = [];    // Array of manifest objects {i,j,dm32_no,precision,bf,log10_bf,sigma,png}
+    let bfData       = [];    // Flat array of CSV row objects (one per grid point)
+    let bfGrid2D     = [];    // 2D sparse array [i][j] → CSV row, for O(1) lookup
+    let dm32Unique   = [];    // Sorted unique Δm²₃₂ (NO) values from manifest
+    let precUnique   = [];    // Sorted unique precision values from manifest
+    let dm32Min, dm32Max;
+    let precMin, precMax;
+    let currentDm32      = null;
+    let currentPrecision = null;
+    let currentField     = 'log10_bf'; // 'log10_bf' | 'sigma' | 'frac_rmse'
+
+    // D3 handles — populated by initHeatmap() in Session 2
+    let heatmapSvg      = null;
+    let heatmapXScale   = null;
+    let heatmapYScale   = null;
+    let colorScale      = null;
+    let crosshairGroup  = null;
+    let junoMarkerGroup = null;
+
+    // ============================================================
+    // UTILITY FUNCTIONS
+    // ============================================================
+
+    /** Zero-pad integer n to 2 digits. Extend to padThree() if grid > 99. */
+    function padTwo(n) {
+      return String(n).padStart(2, '0');
+    }
+
+    /** Format a number to fixed decimals; returns '—' for null/NaN. */
+    function fmtNum(x, decimals = 3) {
+      if (x === null || x === undefined || isNaN(Number(x))) return '—';
+      return Number(x).toFixed(decimals);
+    }
+
+    // ============================================================
+    // DATA LOADING
+    // ============================================================
+
+    /**
+     * Fetch bf_grid.csv and manifest.json, parse them, and bootstrap the UI.
+     * Populates all global state variables.
+     */
+    async function loadData() {
+      const overlay = document.getElementById('loading-overlay');
+      try {
+        // Fetch both files in parallel
+        const [csvText, manifestJson] = await Promise.all([
+          fetch('../../data/bf_grid.csv').then(r => {
+            if (!r.ok) throw new Error(`bf_grid.csv — HTTP ${r.status}`);
+            return r.text();
+          }),
+          fetch('../../data/manifest.json').then(r => {
+            if (!r.ok) throw new Error(`manifest.json — HTTP ${r.status}`);
+            // Pipeline writes -Infinity / NaN, which strict JSON.parse rejects.
+            // Replace the bare tokens with null before parsing.
+            return r.text().then(t =>
+              JSON.parse(t.replace(/-?Infinity|NaN/g, 'null'))
+            );
+          })
+        ]);
+
+        // --- Parse CSV into flat array of objects ---
+        const lines   = csvText.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim());
+        bfData = lines.slice(1).map(line => {
+          const vals = line.split(',');
+          const row  = {};
+          headers.forEach((h, idx) => {
+            const raw = (vals[idx] ?? '').trim();
+            row[h]    = raw === '' || isNaN(raw) ? raw : Number(raw);
+          });
+          return row;
+        });
+
+        // Build 2D lookup array
+        bfGrid2D = [];
+        bfData.forEach(row => {
+          if (!bfGrid2D[row.i]) bfGrid2D[row.i] = [];
+          bfGrid2D[row.i][row.j] = row;
+        });
+
+        // --- Store manifest ---
+        gridManifest = manifestJson;
+
+        // --- Derive axis ranges from manifest ---
+        dm32Unique = [...new Set(gridManifest.map(e => e.dm32_no))].sort((a, b) => a - b);
+        precUnique = [...new Set(gridManifest.map(e => e.precision))].sort((a, b) => a - b);
+        dm32Min = dm32Unique[0];
+        dm32Max = dm32Unique[dm32Unique.length - 1];
+        precMin = precUnique[0];
+        precMax = precUnique[precUnique.length - 1];
+
+        // Update slider ranges from real data
+        const sliderDm32 = document.getElementById('slider-dm32');
+        const sliderPrec = document.getElementById('slider-precision');
+        sliderDm32.min   = dm32Min;
+        sliderDm32.max   = dm32Max;
+        sliderPrec.min   = precMin;
+        sliderPrec.max   = precMax;
+
+        // Update subtitle text on sliders
+        document.querySelector('#dm32-group .slider-subtext').textContent =
+          `Normal ordering assumption · range: ${fmtNum(dm32Min, 3)} – ${fmtNum(dm32Max, 3)} × 10⁻³ eV²`;
+        document.querySelector('#precision-group .slider-subtext').textContent =
+          `Fractional precision on |Δm²₃₂| · range: ${fmtNum(precMin, 2)} – ${fmtNum(precMax, 2)}%`;
+
+        // Default slider values to midpoints
+        currentDm32      = (dm32Min + dm32Max) / 2;
+        currentPrecision = (precMin + precMax) / 2;
+        sliderDm32.value = currentDm32;
+        sliderPrec.value = currentPrecision;
+
+        // Hide heatmap placeholder text
+        const hpText = document.getElementById('heatmap-placeholder');
+        if (hpText) hpText.style.display = 'none';
+
+        // Bootstrap components
+        initHeatmap();      // TODO Session 2: D3 heatmap rendering
+        initSliders();      // TODO Session 3A: slider event wiring
+        renderJunoMarker(); // TODO Session 3C: JUNO star marker
+
+        // Populate initial readouts and metric cards
+        updateSliderReadout('dm32-readout', currentDm32, 3);
+        updateSliderReadout('precision-readout', currentPrecision, 2);
+        updateSliderFill(sliderDm32);
+        updateSliderFill(sliderPrec);
+        const nearest = getNearestGridPoint(currentDm32, currentPrecision);
+        updateMetricCards(nearest);
+        updateNearestPointInfo(currentDm32, currentPrecision, nearest);
+
+        // Dismiss loading overlay
+        overlay.classList.add('hidden');
+
+      } catch (err) {
+        overlay.classList.add('hidden');
+        const banner = document.getElementById('error-banner');
+        banner.textContent =
+          `Failed to load data: ${err.message}. ` +
+          `Run the pipeline (generate_data.py) and serve from the repo root.`;
+        banner.classList.add('visible');
+        console.error('[loadData]', err);
+      }
+    }
+
+    /** Set a slider readout element's text content. */
+    function updateSliderReadout(elementId, value, decimals) {
+      const el = document.getElementById(elementId);
+      if (el) el.textContent = fmtNum(value, decimals);
+    }
+
+    // ============================================================
+    // HELPER FUNCTION STUBS
+    // (Session 2 fills: initHeatmap, drawContours)
+    // (Session 3A fills: initSliders body, updateHeatmapFromSliders)
+    // (Session 3B fills: displayTrianglePlot body)
+    // (Session 3C fills: renderJunoMarker body)
+    // ============================================================
+
+    /**
+     * Find the manifest entry nearest to (dm32, precision).
+     * Uses normalised Euclidean distance over the grid ranges.
+     * @param {number} dm32      - Δm²₃₂ under NO, × 10⁻³ eV²
+     * @param {number} precision - Fractional precision in %
+     * @returns {Object|null} Manifest entry {i,j,dm32_no,precision,bf,log10_bf,sigma,png}
+     */
+    function getNearestGridPoint(dm32, precision) {
+      if (!gridManifest.length) return null;
+      const dm32Range = (dm32Max - dm32Min) || 1;
+      const precRange = (precMax - precMin) || 1;
+      let best     = null;
+      let bestDist = Infinity;
+      gridManifest.forEach(entry => {
+        const d = Math.pow((entry.dm32_no  - dm32)      / dm32Range, 2)
+                + Math.pow((entry.precision - precision) / precRange, 2);
+        if (d < bestDist) { bestDist = d; best = entry; }
+      });
+      return best;
+    }
+
+    /**
+     * Update heatmap crosshair position and metric cards.
+     * Called on every slider input event.
+     * @param {number} dm32
+     * @param {number} precision
+     */
+    function updateHeatmapFromSliders(dm32, precision) {
+      currentDm32      = dm32;
+      currentPrecision = precision;
+      updateSliderReadout('dm32-readout',      dm32,      3);
+      updateSliderReadout('precision-readout', precision, 2);
+      const nearest = getNearestGridPoint(dm32, precision);
+      updateMetricCards(nearest);
+      updateNearestPointInfo(dm32, precision, nearest);
+      drawCrosshair(dm32, precision);
+    }
+
+    /**
+     * Render or move the heatmap crosshair at the (dm32, precision) location.
+     * Position is continuous — does NOT snap to grid.
+     */
+    function drawCrosshair(dm32, precision) {
+      if (!crosshairGroup || !heatmapXScale || !heatmapYScale || !heatmapSvg) return;
+      const plotInfo = heatmapSvg.node().__plotInfo;
+      if (!plotInfo) return;
+      const { plotWidth, plotHeight } = plotInfo;
+
+      const x = heatmapXScale(dm32);
+      const y = heatmapYScale(precision);
+      if (!isFinite(x) || !isFinite(y)) return;
+      const xClamped = Math.max(0, Math.min(plotWidth, x));
+      const yClamped = Math.max(0, Math.min(plotHeight, y));
+
+      crosshairGroup.selectAll('*').remove();
+      crosshairGroup.append('line')
+        .attr('x1', xClamped).attr('x2', xClamped)
+        .attr('y1', 0).attr('y2', plotHeight)
+        .attr('stroke', '#666').attr('stroke-opacity', 0.55)
+        .attr('stroke-width', 1).attr('stroke-dasharray', '3 3');
+      crosshairGroup.append('line')
+        .attr('x1', 0).attr('x2', plotWidth)
+        .attr('y1', yClamped).attr('y2', yClamped)
+        .attr('stroke', '#666').attr('stroke-opacity', 0.55)
+        .attr('stroke-width', 1).attr('stroke-dasharray', '3 3');
+      crosshairGroup.append('circle')
+        .attr('cx', xClamped).attr('cy', yClamped).attr('r', 4)
+        .attr('fill', '#ffffff')
+        .attr('stroke', '#333')
+        .attr('stroke-width', 1.5);
+    }
+
+    /**
+     * Load and display the triangle PNG for grid point (i, j).
+     * @param {number} i - dm32 grid index
+     * @param {number} j - precision grid index
+     */
+    function displayTrianglePlot(i, j) {
+      const img         = document.getElementById('triangle-image');
+      const placeholder = document.getElementById('triangle-placeholder');
+      const info        = document.getElementById('triangle-info');
+      const subtitle    = document.getElementById('triangle-subtitle');
+
+      const pngPath = `../../triangles/triangle_i${padTwo(i)}_j${padTwo(j)}.png`;
+      const entry = gridManifest.find(e => e.i === i && e.j === j);
+
+      // Check if the current slider position differs from this grid point
+      const sliderMatchesPt = entry &&
+        Math.abs(entry.dm32_no   - currentDm32)      < 1e-5 &&
+        Math.abs(entry.precision - currentPrecision) < 1e-5;
+
+      img.onload = () => {
+        placeholder.style.display = 'none';
+        img.style.opacity = '0';
+        img.style.transition = 'opacity 0.3s ease';
+        img.classList.add('visible');
+        requestAnimationFrame(() => requestAnimationFrame(() => { img.style.opacity = '1'; }));
+
+        if (entry) {
+          subtitle.textContent =
+            `dm32 = ${fmtNum(entry.dm32_no, 3)} × 10⁻³ eV²  ·  prec = ${fmtNum(entry.precision, 2)}%`;
+        }
+        const nearestNote = !sliderMatchesPt ? '  ·  Nearest available grid point' : '';
+        info.textContent = `Grid point: (i=${i}, j=${j})${nearestNote}`;
+      };
+      img.onerror = () => {
+        img.classList.remove('visible');
+        placeholder.style.display = '';
+        info.textContent = 'Triangle plot not available';
+      };
+      img.src = pngPath;
+    }
+
+    /**
+     * Draw a star marker on the heatmap at JUNO_RESULT coordinates.
+     * No-op if either coordinate is null. Safe to call multiple times —
+     * clears the previous marker before drawing a new one.
+     */
+    function renderJunoMarker() {
+      // Always wipe any previous marker first
+      if (junoMarkerGroup) junoMarkerGroup.selectAll('*').remove();
+
+      if (JUNO_RESULT.dm32_no === null || JUNO_RESULT.precision === null) return;
+      if (!heatmapXScale || !heatmapYScale || !junoMarkerGroup) return;
+
+      const cx = heatmapXScale(JUNO_RESULT.dm32_no);
+      const cy = heatmapYScale(JUNO_RESULT.precision);
+      if (!isFinite(cx) || !isFinite(cy)) return;
+
+      const nearest = getNearestGridPoint(JUNO_RESULT.dm32_no, JUNO_RESULT.precision);
+
+      // Ensure a single shared tooltip div exists (created once, reused)
+      let tooltip = document.getElementById('juno-tooltip');
+      if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'juno-tooltip';
+        Object.assign(tooltip.style, {
+          position:      'fixed',
+          background:    'rgba(30,30,30,0.88)',
+          color:         '#fff',
+          padding:       '8px 12px',
+          borderRadius:  '8px',
+          fontSize:      '12px',
+          lineHeight:    '1.65',
+          pointerEvents: 'none',
+          display:       'none',
+          zIndex:        '1000',
+          maxWidth:      '220px',
+          boxShadow:     '0 2px 12px rgba(0,0,0,0.3)'
+        });
+        document.body.appendChild(tooltip);
+      }
+
+      // Group that captures hover events
+      const markerGroup = junoMarkerGroup.append('g')
+        .attr('class', 'juno-star')
+        .attr('transform', `translate(${cx},${cy})`)
+        .style('cursor', 'pointer');
+
+      // Transparent hit-area for comfortable hovering
+      markerGroup.append('circle')
+        .attr('r', 14)
+        .attr('fill', 'transparent');
+
+      // Star glyph — white fill, dark stroke for visibility on any colour
+      markerGroup.append('text')
+        .text('✦')
+        .attr('font-size', '16px')
+        .attr('fill', '#ffffff')
+        .attr('stroke', '#333333')
+        .attr('stroke-width', 1.5)
+        .attr('paint-order', 'stroke')
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'central');
+
+      const bfText    = nearest
+        ? (nearest.bf > 9999 ? nearest.bf.toExponential(2) : fmtNum(nearest.bf, 1))
+        : '—';
+      const sigmaText = nearest
+        ? ((nearest.sigma >= 0 ? '+' : '') + fmtNum(nearest.sigma, 2) + ' σ')
+        : '—';
+
+      markerGroup
+        .on('mouseover', function(event) {
+          tooltip.innerHTML =
+            `<strong>${JUNO_RESULT.label}</strong><br>` +
+            `Δm²₃₂ (NO): ${fmtNum(JUNO_RESULT.dm32_no, 3)} × 10⁻³ eV²<br>` +
+            `Precision: ${fmtNum(JUNO_RESULT.precision, 2)}%<br>` +
+            `BF: ${bfText}<br>` +
+            `σ: ${sigmaText}`;
+          tooltip.style.display = 'block';
+          tooltip.style.left    = (event.clientX + 14) + 'px';
+          tooltip.style.top     = (event.clientY - 10) + 'px';
+        })
+        .on('mousemove', function(event) {
+          tooltip.style.left = (event.clientX + 14) + 'px';
+          tooltip.style.top  = (event.clientY - 10) + 'px';
+        })
+        .on('mouseout', function() {
+          tooltip.style.display = 'none';
+        });
+    }
+
+    /**
+     * Update BF and σ metric cards for the given manifest entry.
+     * @param {Object|null} entry
+     */
+    function updateMetricCards(entry) {
+      const bfEl    = document.getElementById('bf-value');
+      const sigmaEl = document.getElementById('sigma-value');
+      if (!entry) {
+        bfEl.textContent    = '—';
+        sigmaEl.textContent = '—';
+        bfEl.className    = 'metric-value';
+        sigmaEl.className = 'metric-value';
+        return;
+      }
+      const bf    = entry.bf;
+      const sigma = entry.sigma;
+      bfEl.textContent = (bf === null || !isFinite(bf)) ? '—' :
+                         bf > 9999 ? bf.toExponential(2) : fmtNum(bf, 1);
+      const s = (sigma !== null && sigma !== undefined) ? Number(sigma) : null;
+      if (s === null || !isFinite(s) || Math.abs(s) >= 8) {
+        sigmaEl.textContent = (s !== null && s < 0) ? '<−8σ' : '>8σ';
+      } else {
+        sigmaEl.textContent = (s >= 0 ? '+' : '') + fmtNum(s, 2) + ' σ';
+      }
+      bfEl.className    = 'metric-value' + (bf > 1 ? ' no-preference' : bf < 1 ? ' io-preference' : '');
+      sigmaEl.className = 'metric-value' + (s !== null && s > 0 ? ' no-preference' : s !== null && s < 0 ? ' io-preference' : '');
+    }
+
+    /**
+     * Show/hide the nearest-grid-point info banner below the Generate button.
+     * @param {number}      sliderDm32
+     * @param {number}      sliderPrec
+     * @param {Object|null} nearest
+     */
+    function updateNearestPointInfo(sliderDm32, sliderPrec, nearest) {
+      const el = document.getElementById('nearest-info');
+      if (!nearest) { el.classList.remove('visible'); return; }
+      const dm32Match = Math.abs(nearest.dm32_no   - sliderDm32) < 1e-5;
+      const precMatch = Math.abs(nearest.precision - sliderPrec) < 1e-5;
+      if (dm32Match && precMatch) {
+        el.classList.remove('visible');
+      } else {
+        el.textContent =
+          `Showing nearest grid point: dm32 = ${fmtNum(nearest.dm32_no, 3)} × 10⁻³ eV², ` +
+          `prec = ${fmtNum(nearest.precision, 2)}%`;
+        el.classList.add('visible');
+      }
+    }
+
+    /**
+     * Set up range slider event listeners.
+     * TODO Session 3A: full slider + crosshair integration.
+     */
+    function initSliders() {
+      const sliderDm32 = document.getElementById('slider-dm32');
+      const sliderPrec = document.getElementById('slider-precision');
+
+      sliderDm32.addEventListener('input', () => {
+        updateSliderFill(sliderDm32);
+        updateHeatmapFromSliders(parseFloat(sliderDm32.value), currentPrecision);
+      });
+
+      sliderPrec.addEventListener('input', () => {
+        updateSliderFill(sliderPrec);
+        updateHeatmapFromSliders(currentDm32, parseFloat(sliderPrec.value));
+      });
+    }
+
+    /** Drive the filled-track CSS gradient by setting --slider-fill. */
+    function updateSliderFill(inputEl) {
+      const pct = ((parseFloat(inputEl.value) - parseFloat(inputEl.min)) /
+                   (parseFloat(inputEl.max)   - parseFloat(inputEl.min))) * 100;
+      inputEl.style.setProperty('--slider-fill', `${pct.toFixed(1)}%`);
+    }
+
+    // --- Field rendering config ------------------------------------------
+    // Clamps keep extreme values (log10_bf can reach ±30) from saturating
+    // the entire gradient. Contour σ levels live within ±2.57 so a ±5 clamp
+    // leaves comfortable headroom for contour visibility.
+    const FIELD_CONFIG = {
+      log10_bf:  { label: 'log₁₀(BF)', diverging: true,  clamp: 5,   tickFmt: '.1f' },
+      sigma:     { label: 'σ',         diverging: true,  clamp: 5,   tickFmt: '.1f' },
+      frac_rmse: { label: 'Frac RMSE', diverging: false, clamp: 1.0, tickFmt: '.2f' }
+    };
+
+    /** Sanitize a value: non-finite → 0 (or clamped). */
+    function safeValue(v) {
+      if (v === null || v === undefined) return 0;
+      const n = Number(v);
+      return isFinite(n) ? n : 0;
+    }
+
+    /**
+     * Build a D3 colour scale for the active field.
+     * Diverging fields use RdWhBu around 0; sequential uses white → accent brown.
+     */
+    function makeColorScale(field) {
+      const cfg = FIELD_CONFIG[field];
+      const styles = getComputedStyle(document.documentElement);
+      const colorIO  = styles.getPropertyValue('--color-io').trim() || '#b84336';
+      const colorNO  = styles.getPropertyValue('--color-no').trim() || '#2d6fa3';
+      const accent   = styles.getPropertyValue('--accent').trim()   || '#7c6f5e';
+
+      if (cfg.diverging) {
+        const interp = d3.interpolateRgbBasis([colorIO, '#ffffff', colorNO]);
+        return d3.scaleSequential(interp).domain([-cfg.clamp, cfg.clamp]);
+      } else {
+        const interp = d3.interpolateRgbBasis(['#ffffff', accent]);
+        return d3.scaleSequential(interp).domain([0, cfg.clamp]);
+      }
+    }
+
+    /**
+     * Initialise D3 heatmap: SVG, scales, colour map, cell rendering,
+     * dual x-axis, y-axis, colourbar, contours, and initial crosshair.
+     */
+    function initHeatmap() {
+      const container = document.getElementById('heatmap-container');
+      const rect = container.getBoundingClientRect();
+      const width  = rect.width;
+      const height = rect.height;
+      if (!width || !height) {
+        console.warn('[initHeatmap] container has no dimensions yet — retrying');
+        requestAnimationFrame(initHeatmap);
+        return;
+      }
+
+      const margin = { top: 42, right: 78, bottom: 48, left: 60 };
+      const plotWidth  = width  - margin.left - margin.right;
+      const plotHeight = height - margin.top  - margin.bottom;
+
+      const svg = d3.select('#heatmap-svg')
+        .attr('width',  width)
+        .attr('height', height);
+      svg.selectAll('*').remove();
+
+      const root = svg.append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+      const nx = dm32Unique.length;
+      const ny = precUnique.length;
+      const dm32Step = (dm32Max - dm32Min) / Math.max(1, nx - 1);
+      const precStep = (precMax - precMin) / Math.max(1, ny - 1);
+
+      // Axes: extend domain by half a cell on each side so cells fit edge-to-edge
+      heatmapXScale = d3.scaleLinear()
+        .domain([dm32Min - dm32Step / 2, dm32Max + dm32Step / 2])
+        .range([0, plotWidth]);
+      heatmapYScale = d3.scaleLinear()
+        .domain([precMin - precStep / 2, precMax + precStep / 2])
+        .range([plotHeight, 0]);
+
+      colorScale = makeColorScale(currentField);
+
+      // --- Cells -------------------------------------------------------------
+      const cellW = plotWidth  / nx;
+      const cellH = plotHeight / ny;
+      const cellsGroup = root.append('g').attr('class', 'cells');
+      cellsGroup.selectAll('rect')
+        .data(bfData)
+        .enter().append('rect')
+          .attr('class', 'cell')
+          .attr('x', d => heatmapXScale(d.dm32_no)   - cellW / 2)
+          .attr('y', d => heatmapYScale(d.precision) - cellH / 2)
+          .attr('width',  cellW + 0.5)   // 0.5px overlap kills hairline seams
+          .attr('height', cellH + 0.5)
+          .attr('fill',   d => colorScale(safeValue(d[currentField])));
+
+      // --- Bottom x-axis (NO) -----------------------------------------------
+      const xAxisBottom = d3.axisBottom(heatmapXScale).ticks(6).tickFormat(d3.format('.2f'));
+      root.append('g')
+        .attr('class', 'axis x-axis-bottom')
+        .attr('transform', `translate(0,${plotHeight})`)
+        .call(xAxisBottom);
+      root.append('text')
+        .attr('class', 'axis-label')
+        .attr('x', plotWidth / 2)
+        .attr('y', plotHeight + 36)
+        .attr('text-anchor', 'middle')
+        .text('Δm²₃₂ (NO) [× 10⁻³ eV²]');
+
+      // --- Top x-axis (IO, offset by λ) -------------------------------------
+      const xScaleIO = d3.scaleLinear()
+        .domain([heatmapXScale.domain()[0] + LAMBDA_IO_OFFSET,
+                 heatmapXScale.domain()[1] + LAMBDA_IO_OFFSET])
+        .range([0, plotWidth]);
+      const xAxisTop = d3.axisTop(xScaleIO).ticks(6).tickFormat(d3.format('.2f'));
+      root.append('g').attr('class', 'axis x-axis-top').call(xAxisTop);
+      root.append('text')
+        .attr('class', 'axis-label')
+        .attr('x', plotWidth / 2)
+        .attr('y', -26)
+        .attr('text-anchor', 'middle')
+        .text('Δm²₃₂ (IO) [× 10⁻³ eV²]');
+
+      // --- Y axis -----------------------------------------------------------
+      const yAxis = d3.axisLeft(heatmapYScale).ticks(6).tickFormat(d3.format('.2f'));
+      root.append('g').attr('class', 'axis y-axis').call(yAxis);
+      root.append('text')
+        .attr('class', 'axis-label')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -plotHeight / 2)
+        .attr('y', -42)
+        .attr('text-anchor', 'middle')
+        .text('Precision (%)');
+
+      // Axis style — keep ticks subtle
+      svg.selectAll('.axis path, .axis line').style('stroke', '#cfcfcf');
+      svg.selectAll('.axis text').style('fill', '#666').style('font-size', '10px');
+      svg.selectAll('.axis-label')
+        .style('fill', '#666').style('font-size', '11px').style('font-weight', '500');
+
+      // --- Overlay groups (contour > crosshair > juno marker) ---------------
+      const contourGroup = root.append('g').attr('class', 'contours');
+      crosshairGroup     = root.append('g').attr('class', 'crosshair');
+      junoMarkerGroup    = root.append('g').attr('class', 'juno-marker');
+
+      heatmapSvg = svg;
+      heatmapSvg.node().__plotInfo = {
+        root, contourGroup, plotWidth, plotHeight, nx, ny, margin, width, height
+      };
+
+      drawContours();
+      drawColorbar();
+
+      // Initial crosshair at the seeded slider position
+      if (currentDm32 != null && currentPrecision != null) {
+        drawCrosshair(currentDm32, currentPrecision);
+      }
+    }
+
+    /**
+     * Draw σ iso-contours (±1σ, ±2σ, ±3σ) over the heatmap.
+     * Contours are computed on log10_bf regardless of the active colour field
+     * (σ is a strictly monotonic function of log10_bf, so the locations match).
+     * For frac_rmse, contours are hidden — they have no physical meaning there.
+     */
+    function drawContours() {
+      if (!heatmapSvg) return;
+      const info = heatmapSvg.node().__plotInfo;
+      if (!info) return;
+      const { contourGroup, plotWidth, plotHeight, nx, ny } = info;
+      contourGroup.selectAll('*').remove();
+      if (currentField === 'frac_rmse') return;
+
+      // Build flat value array in row-major (j, i) order
+      const values = new Array(nx * ny);
+      for (let j = 0; j < ny; j++) {
+        for (let i = 0; i < nx; i++) {
+          const row = bfGrid2D[i] && bfGrid2D[i][j];
+          values[j * nx + i] = row ? safeValue(row.log10_bf) : 0;
+        }
+      }
+
+      const thresholds = SIGMA_CONTOUR_THRESHOLDS
+        .map(t => t.log10_bf)
+        .sort((a, b) => a - b);
+
+      const contours = d3.contours().size([nx, ny]).thresholds(thresholds)(values);
+
+      const cellW = plotWidth  / nx;
+      const cellH = plotHeight / ny;
+
+      contours.forEach(c => {
+        const sigmaInfo = SIGMA_CONTOUR_THRESHOLDS.find(t =>
+          Math.abs(t.log10_bf - c.value) < 1e-4);
+        if (!sigmaInfo) return;
+        const sigma = sigmaInfo.sigma;
+
+        let d = '';
+        c.coordinates.forEach(polygon => {
+          polygon.forEach(ring => {
+            ring.forEach(([x, y], idx) => {
+              const px = x * cellW;
+              const py = plotHeight - y * cellH;
+              d += (idx === 0 ? 'M' : 'L') + px.toFixed(2) + ',' + py.toFixed(2);
+            });
+            d += 'Z';
+          });
+        });
+        if (!d) return;
+
+        contourGroup.append('path')
+          .attr('d', d)
+          .attr('fill', 'none')
+          .attr('stroke', '#555')
+          .attr('stroke-width', 1.3)
+          .attr('stroke-opacity', 0.6)
+          .attr('stroke-dasharray', sigma < 0 ? '4 3' : null);
+
+        // Label at midpoint of the longest ring on the first polygon
+        const polys = c.coordinates;
+        if (!polys.length) return;
+        let longestRing = null, longestLen = 0;
+        polys.forEach(p => p.forEach(ring => {
+          if (ring.length > longestLen) { longestLen = ring.length; longestRing = ring; }
+        }));
+        if (!longestRing) return;
+        const midIdx = Math.floor(longestRing.length / 2);
+        const [lx, ly] = longestRing[midIdx];
+        const labelX = lx * cellW;
+        const labelY = plotHeight - ly * cellH;
+        const labelText = `${sigma > 0 ? '+' : ''}${sigma}σ`;
+
+        contourGroup.append('text')
+          .attr('x', labelX)
+          .attr('y', labelY)
+          .attr('font-size', '9.5px')
+          .attr('font-weight', 600)
+          .attr('fill', '#333')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'central')
+          .attr('paint-order', 'stroke')
+          .attr('stroke', '#ffffff')
+          .attr('stroke-width', 3)
+          .attr('stroke-linejoin', 'round')
+          .text(labelText);
+      });
+    }
+
+    /**
+     * Draw vertical colourbar to the right of the plot area for the active field.
+     */
+    function drawColorbar() {
+      if (!heatmapSvg) return;
+      const info = heatmapSvg.node().__plotInfo;
+      if (!info) return;
+      const { margin, width, plotHeight } = info;
+      const cfg = FIELD_CONFIG[currentField];
+
+      heatmapSvg.selectAll('.colorbar').remove();
+      heatmapSvg.select('defs').remove();
+
+      const cbWidth  = 12;
+      const cbHeight = plotHeight;
+      const cbX = width - margin.right + 22;
+      const cbY = margin.top;
+
+      const gradId = 'cb-grad-' + currentField;
+      const defs = heatmapSvg.append('defs');
+      const grad = defs.append('linearGradient')
+        .attr('id', gradId)
+        .attr('x1', 0).attr('y1', 1)
+        .attr('x2', 0).attr('y2', 0);
+
+      const [d0, d1] = cfg.diverging
+        ? [-cfg.clamp, cfg.clamp]
+        : [0, cfg.clamp];
+      const nStops = 24;
+      for (let k = 0; k <= nStops; k++) {
+        const t = k / nStops;
+        grad.append('stop')
+          .attr('offset', `${(t * 100).toFixed(2)}%`)
+          .attr('stop-color', colorScale(d0 + t * (d1 - d0)));
+      }
+
+      const cbGroup = heatmapSvg.append('g').attr('class', 'colorbar');
+      cbGroup.append('rect')
+        .attr('x', cbX).attr('y', cbY)
+        .attr('width', cbWidth).attr('height', cbHeight)
+        .attr('fill', `url(#${gradId})`)
+        .attr('stroke', '#cfcfcf');
+
+      const cbScale = d3.scaleLinear().domain([d0, d1]).range([cbHeight, 0]);
+      const cbAxis = d3.axisRight(cbScale).ticks(6).tickFormat(d3.format(cfg.tickFmt));
+      const cbAxisGroup = cbGroup.append('g')
+        .attr('transform', `translate(${cbX + cbWidth},${cbY})`)
+        .call(cbAxis);
+      cbAxisGroup.selectAll('path, line').style('stroke', '#cfcfcf');
+      cbAxisGroup.selectAll('text').style('fill', '#666').style('font-size', '9.5px');
+
+      cbGroup.append('text')
+        .attr('x', cbX + cbWidth / 2)
+        .attr('y', cbY - 10)
+        .attr('text-anchor', 'middle')
+        .style('font-size', '10px')
+        .style('font-weight', '600')
+        .style('fill', '#666')
+        .text(cfg.label);
+    }
+
+    /**
+     * Switch the active colour field and re-render the heatmap, contours, and colourbar.
+     * @param {string} field - 'log10_bf' | 'sigma' | 'frac_rmse'
+     */
+    function updateFieldToggle(field) {
+      if (!FIELD_CONFIG[field]) return;
+      currentField = field;
+      document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.field === field);
+      });
+      if (!heatmapSvg) return;
+
+      colorScale = makeColorScale(field);
+
+      heatmapSvg.select('g.cells').selectAll('rect.cell')
+        .transition().duration(220)
+        .attr('fill', d => colorScale(safeValue(d[field])));
+
+      drawContours();
+      drawColorbar();
+    }
+
+    // ============================================================
+    // HEADER / FOOTER / PHYSICS SUMMARY
+    // ============================================================
+
+    /** Colour the "NOvA" portion of the logo text in the accent colour. */
+    function initHeader() {
+      const logoText = document.querySelector('#header-bar .logo-text');
+      if (logoText) {
+        logoText.innerHTML =
+          '<span style="color:var(--accent);font-weight:700;">NOvA</span>' +
+          '<span style="color:var(--text-primary);font-weight:700;">+JUNO</span>';
+      }
+    }
+
+    /** Update footer to show three-column layout: data release · cite as · collaboration. */
+    function initFooter() {
+      const footerContent = document.querySelector('#footer-bar .footer-content');
+      if (!footerContent) return;
+      footerContent.innerHTML =
+        '<span>NOvA+JUNO Data Release &middot; 2026</span>' +
+        '<span>Cite as: [arXiv reference, TBD]</span>' +
+        '<span>NOvA Collaboration</span>';
+    }
+
+    /**
+     * Inject a collapsible "What is this?" physics summary section
+     * between the main content grid and the footer.
+     */
+    function initPhysicsSummary() {
+      if (document.getElementById('physics-summary')) return;
+      const section = document.createElement('section');
+      section.id = 'physics-summary';
+      section.style.cssText =
+        'max-width:1400px;margin:0 auto 16px;padding:0 24px;';
+      section.innerHTML =
+        '<div class="card" style="padding:14px 24px;">' +
+          '<div id="physics-summary-header" style="cursor:pointer;display:flex;align-items:center;' +
+               'justify-content:space-between;user-select:none;gap:12px;">' +
+            '<span style="font-size:13px;font-weight:600;color:var(--text-primary);">' +
+              'What is this?' +
+            '</span>' +
+            '<span id="physics-toggle-icon" style="font-size:11px;color:var(--text-muted);' +
+                 'white-space:nowrap;">▼ expand</span>' +
+          '</div>' +
+          '<div id="physics-summary-text" style="display:none;margin-top:10px;">' +
+            '<p style="font-size:13px;color:var(--text-label);line-height:1.7;max-width:860px;">' +
+              'NOvA measures neutrino oscillations over an 810 km baseline using the NuMI beam. ' +
+              'JUNO will measure the atmospheric mass splitting to sub-percent precision. ' +
+              'This plot shows the combined NOvA+JUNO Bayes factor for mass ordering ' +
+              '(normal vs inverted) as a function of JUNO\'s hypothetical measurement outcome. ' +
+              'Blue indicates preference for normal ordering; red indicates inverted.' +
+            '</p>' +
+          '</div>' +
+        '</div>';
+
+      const footer = document.getElementById('footer-bar');
+      if (footer) footer.parentNode.insertBefore(section, footer);
+
+      document.getElementById('physics-summary-header').addEventListener('click', function() {
+        const text = document.getElementById('physics-summary-text');
+        const icon = document.getElementById('physics-toggle-icon');
+        const expanding = text.style.display === 'none';
+        text.style.display = expanding ? 'block' : 'none';
+        icon.textContent   = expanding ? '▲ collapse' : '▼ expand';
+      });
+    }
+
+    // ============================================================
+    // EVENT WIRING
+    // ============================================================
+
+    // Field toggle
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => updateFieldToggle(btn.dataset.field));
+    });
+
+    // Generate button
+    document.getElementById('generate-btn').addEventListener('click', () => {
+      const nearest = getNearestGridPoint(currentDm32, currentPrecision);
+      if (!nearest) return;
+      displayTrianglePlot(nearest.i, nearest.j);
+      updateMetricCards(nearest);
+      updateNearestPointInfo(currentDm32, currentPrecision, nearest);
+    });
+
+    // ============================================================
+    // ENTRY POINT
+    // ============================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      initHeader();
+      initFooter();
+      initPhysicsSummary();
+      loadData();
+    });
+
+  </script>
+</body>
+</html>

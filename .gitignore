@@ -1,5 +1,7 @@
 # Data files (keep local, don't commit)
-Artur_code/bayes_factors_and_rmse_prel.npz
+Artur_code/
+Reference_material/
+triangles/
 data/*.npz
 data/*.pkl
 
