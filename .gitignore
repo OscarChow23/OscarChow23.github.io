@@ -1,0 +1,19 @@
+# Data files (keep local, don't commit)
+Artur_code/bayes_factors_and_rmse_prel.npz
+data/*.npz
+data/*.pkl
+
+# Environment
+.venv/
+.env
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+.claude/
+*.swp
+
+# IDE
+.vscode/
+.cursor/
