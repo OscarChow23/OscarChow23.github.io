@@ -75,7 +75,7 @@ def main():
     for i in range(n_dm32):
         for j in range(n_prec):
             pad = "02d" if max(n_dm32, n_prec) <= 99 else "03d"
-            png = f"triangles/triangle_i{i:{pad}}_j{j:{pad}}.png"
+            png = f"triangles/triangle_i{i:{pad}}_j{j:{pad}}.jpg"
             manifest.append({
                 "i": int(i),
                 "j": int(j),

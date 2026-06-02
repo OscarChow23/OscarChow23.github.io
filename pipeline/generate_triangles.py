@@ -1,8 +1,8 @@
 """
-M2: Render triangle PNGs for every grid point in the npz.
+M2: Render triangle JPEGs for every grid point in the npz.
 
 Input:  Artur_code/bayes_factors_and_rmse_prel.npz
-Output: triangles/triangle_i{i:02d}_j{j:02d}.png
+Output: triangles/triangle_i{i:02d}_j{j:02d}.jpg
 
 Matches the physics and rendering of draw_triangle() in Artur_code/plotting.py.
 """
@@ -26,13 +26,13 @@ PARAMETERS_LATEX = {
     "absdm32":     r"$|\Delta m^2_{32}|$ [$\times 10^{-3}$ eV$^2$]",
 }
 
-AXIS_LABEL_FONT_SIZE = 18
-TICK_LABEL_FONT_SIZE = 15
+AXIS_LABEL_FONT_SIZE = 13
+TICK_LABEL_FONT_SIZE = 11
 
 NPZ_PATH = os.path.normpath(os.path.join(
     os.path.dirname(__file__), "..", "Artur_code", "bayes_factors_and_rmse_prel.npz"))
 TRIANGLES_DIR = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), "..", "triangles", "v3"))
+    os.path.dirname(__file__), "..", "triangles", "v6"))
 
 
 def get_quantile_threshold(hist, quantile=0.6827):
@@ -54,12 +54,7 @@ def bf_to_sigma(bf, two_sided=True):
     return norm.isf(p)
 
 
-def draw_triangle(data, i_idx, j_idx, dm32_values, precision_values,
-                  bfs, rmses, fractional_rmses, sigmas, out_path):
-    fig = plt.figure(figsize=(12, 12))
-    ax_triangle = fig.add_subplot(111)
-    ax_triangle.axis("off")
-
+def draw_triangle(data, i_idx, j_idx, fig, panel_axes, out_path):
     postfix = f"i{i_idx}_j{j_idx}"
     n = len(PARAMETERS)
 
@@ -68,7 +63,8 @@ def draw_triangle(data, i_idx, j_idx, dm32_values, precision_values,
             if i < j:
                 continue
 
-            ax = ax_triangle.inset_axes([j / n, 1 - (i + 1) / n, 1 / n, 1 / n])
+            ax = panel_axes[(i, j)]
+            ax.cla()
 
             if i == j:
                 histno = data[f"plot_{pari}_hist_no_{postfix}"]
@@ -140,40 +136,51 @@ def draw_triangle(data, i_idx, j_idx, dm32_values, precision_values,
                 ax.xaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
                 ax.tick_params(axis="x", labelsize=TICK_LABEL_FONT_SIZE)
 
-    plt.tight_layout(pad=0.3)
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
+    fig.savefig(out_path, dpi=80, format='jpeg', pil_kwargs={'quality': 85})
 
 
 def main():
     print(f"Loading {NPZ_PATH} ...")
-    data = np.load(NPZ_PATH)
+    _npz = np.load(NPZ_PATH)
+    print("Pre-loading arrays into memory ...")
+    data = {k: _npz[k] for k in _npz.files}
 
     bfs = data["bfs"]
     rmses = data["rmses"]
     dm32_values = data["dm32_values"] * 1e3
     precision_values = data["precision_values"]
 
-    sigmas = bf_to_sigma(np.abs(bfs)) * np.sign(bfs)
-    fractional_rmses = np.abs(rmses / bfs)
-
     n_dm32, n_prec = bfs.shape
     os.makedirs(TRIANGLES_DIR, exist_ok=True)
+
+    # Create figure and all panel axes once; reuse across iterations
+    n = len(PARAMETERS)
+    fig = plt.figure(figsize=(8, 8))
+    ax_bg = fig.add_subplot(111)
+    ax_bg.axis("off")
+    panel_axes = {}
+    for pi in range(n):
+        for pj in range(n):
+            if pi < pj:
+                continue
+            panel_axes[(pi, pj)] = ax_bg.inset_axes(
+                [pj / n, 1 - (pi + 1) / n, 1 / n, 1 / n])
+    plt.tight_layout(pad=0.3)
 
     total = n_dm32 * n_prec
     with tqdm(total=total, desc="Triangles") as pbar:
         for i in range(n_dm32):
             for j in range(n_prec):
                 out_path = os.path.join(
-                    TRIANGLES_DIR, f"triangle_i{i:02d}_j{j:02d}.png")
+                    TRIANGLES_DIR, f"triangle_i{i:02d}_j{j:02d}.jpg")
                 if os.path.exists(out_path):
                     pbar.update(1)
                     continue
-                draw_triangle(data, i, j, dm32_values, precision_values,
-                              bfs, rmses, fractional_rmses, sigmas, out_path)
+                draw_triangle(data, i, j, fig, panel_axes, out_path)
                 pbar.update(1)
 
-    print(f"Done. PNGs in {TRIANGLES_DIR}")
+    plt.close(fig)
+    print(f"Done. JPEGs in {TRIANGLES_DIR}")
 
 
 if __name__ == "__main__":
