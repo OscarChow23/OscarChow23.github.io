@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NOvA + JUNO Crystal Ball</title>
+  <title>Neutrino Mass Ordering Determination</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,6 +16,9 @@
   <!-- Plotly.js -->
   <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.35.2/plotly.min.js"></script>
 
+  <!-- D3 v7 (for d3.contours() used in sigma iso-contour computation) -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
   <!-- Stylesheet -->
   <link rel="stylesheet" href="./css/main.css" />
 </head>
@@ -27,8 +30,8 @@
     <div class="header-left">
       <img src="./assets/NOvALogoPrideChevron.png" alt="NOvA logo" />
       <div class="header-brand">
-        <span class="brand-name">NOvA + JUNO</span>
-        <span class="brand-sub">Crystal Ball</span>
+        <span class="brand-name">Neutrino Mass Ordering Determination</span>
+        <span class="brand-sub">Interactively explore NOvA's ordering preference as a function of an external Δm² constraint</span>
       </div>
     </div>
 
@@ -43,10 +46,8 @@
       <div class="card controls-card">
 
         <div class="controls-card-header">
-          <span class="card-title">Analysis Controls</span>
-          <div class="all-params-tag">
-            All parameters <i class="ti ti-chevron-down" style="font-size:11px;"></i>
-          </div>
+          <span class="card-title">Measurement Scenario</span>
+          <span class="card-subtitle">External Δm²₃₂ central value and precision</span>
         </div>
 
         <!-- Slider 1: Δm²₃₂ central value -->
@@ -74,7 +75,7 @@
         <div class="slider-group">
           <div class="slider-label-row">
             <label for="slider-prec">
-              JUNO Precision on
+              External precision on
               |&Delta;m&sup2;<sub>32</sub>| [%]
             </label>
             <span class="slider-current-val">0.54</span>
@@ -91,8 +92,31 @@
           </div>
         </div>
 
+        <!-- Slider 3: λ offset (placeholder — not yet wired to data) -->
+        <div class="slider-group" id="lambda-slider-group">
+          <div class="slider-label-row">
+            <label for="slider-lambda">
+              &lambda; offset (NO&ndash;IO)
+              [&times;10<sup>&minus;3</sup> eV&sup2;]
+            </label>
+            <span class="slider-current-val" id="lambda-val">0.120</span>
+          </div>
+          <input
+            type="range"
+            id="slider-lambda"
+            min="0" max="10" step="1" value="5"
+            style="--fill: 50%;"
+            title="Placeholder — λ variation not yet active"
+          />
+          <div class="slider-range-labels">
+            <span>0.115</span>
+            <span>0.125</span>
+          </div>
+          <p class="lambda-placeholder-note">Placeholder &mdash; &lambda; variation not yet active</p>
+        </div>
+
         <div class="generate-wrap">
-          <button id="generate-btn">Generate Triangle Plot</button>
+          <button id="generate-btn"><i class="ti ti-chart-line"></i> Generate Triangle Plot</button>
         </div>
 
       </div>
@@ -104,8 +128,8 @@
 
         <div class="card-header-row">
           <div>
-            <span class="card-title">Triangle Plot</span>
-            <span class="card-subtitle">P(&nu;<sub>&mu;</sub> &rarr; &nu;<sub>e</sub>)</span>
+            <span class="card-title">NOvA Posterior Summary</span>
+            <span class="card-subtitle">Marginalized posterior probability densities from a Bayesian fit</span>
           </div>
         </div>
 
@@ -124,8 +148,8 @@
       <div class="card heatmap-card">
         <div class="card-header-row">
           <div>
-            <span class="card-title">Posterior Distributions</span>
-            <span class="card-subtitle">Corner Plot</span>
+            <span class="card-title">NOvA Sensitivity to the Neutrino Mass Ordering</span>
+            <span class="card-subtitle">Bayes factor vs. external Δm²₃₂ constraint</span>
           </div>
         </div>
         <div class="heatmap-wrap">
@@ -154,11 +178,9 @@
 
   <!-- ══════════════════════════════════════════ BOTTOM NAV ══ -->
   <nav id="bottom-nav">
-    <button class="tab active"><i class="ti ti-chart-line"></i> Analysis</button>
-    <button class="tab"><i class="ti ti-database"></i> Data</button>
-    <button class="tab"><i class="ti ti-cpu"></i> Models</button>
-    <button class="tab"><i class="ti ti-adjustments"></i> Systematic</button>
-    <button class="tab"><i class="ti ti-settings"></i> Settings</button>
+    <a class="tab" href="#" target="_blank" rel="noopener noreferrer"><i class="ti ti-file-text"></i> arXiv</a>
+    <a class="tab" href="https://novaexperiment.fnal.gov" target="_blank" rel="noopener noreferrer"><i class="ti ti-atom"></i> NOvA</a>
+    <a class="tab" href="https://novaexperiment.fnal.gov/data-releases/" target="_blank" rel="noopener noreferrer"><i class="ti ti-database"></i> Data Releases</a>
   </nav>
 
   <!-- ══════════════════════════════════════════ INTERACTIVITY ══ -->
@@ -172,6 +194,17 @@
     let dm32Min, dm32Max, precMin, precMax;
     let currentDm32 = null, currentPrecision = null;
     let triangleImg = null;
+
+    // ── Sigma contour thresholds (log₁₀ BF values for ±1/2/3σ) ──
+    const SIGMA_CONTOUR_THRESHOLDS = [
+      { sigma:  3, log10_bf:  2.5675 },
+      { sigma:  2, log10_bf:  1.3420 },
+      { sigma:  1, log10_bf:  0.8344 },
+      { sigma: -1, log10_bf: -0.8344 },
+      { sigma: -2, log10_bf: -1.3420 },
+      { sigma: -3, log10_bf: -2.5675 },
+    ];
+    const LAMBDA_IO_OFFSET = 0.12;
 
     // ── Helpers ────────────────────────────────────────────────
     function padTwo(n) { return String(n).padStart(2, '0'); }
@@ -351,6 +384,75 @@
         });
       });
 
+      // ── Sigma contour computation via d3.contours() ────────────
+      const nx = dm32Unique.length;
+      const ny = precUnique.length;
+
+      // d3.contours expects flat row-major array: index = j*nx + i
+      const flatValues = new Float64Array(nx * ny);
+      for (let j = 0; j < ny; j++)
+        for (let i = 0; i < nx; i++)
+          flatValues[j * nx + i] = zArr[j][i];
+
+      const thresholds = SIGMA_CONTOUR_THRESHOLDS.map(t => t.log10_bf).sort((a, b) => a - b);
+      const contourPolygons = d3.contours().size([nx, ny]).thresholds(thresholds)(flatValues);
+
+      // Map grid index → data coordinate (uniform grid assumed)
+      const gridToDm32 = xi => dm32Unique[0] + (xi / nx) * (dm32Unique[nx - 1] - dm32Unique[0]);
+      const gridToPrec = yi => precUnique[0] + (yi / ny) * (precUnique[ny - 1] - precUnique[0]);
+
+      const contourTraces = [];
+      const annotations = [];
+
+      contourPolygons.forEach(c => {
+        const sigmaInfo = SIGMA_CONTOUR_THRESHOLDS.find(t => Math.abs(t.log10_bf - c.value) < 1e-4);
+        if (!sigmaInfo || !c.coordinates.length) return;
+        const sigma = sigmaInfo.sigma;
+
+        const xPts = [], yPts = [];
+        let longestRing = null, longestLen = 0;
+
+        c.coordinates.forEach(polygon => {
+          polygon.forEach(ring => {
+            if (xPts.length) { xPts.push(null); yPts.push(null); }
+            ring.forEach(([xi, yi]) => {
+              xPts.push(gridToDm32(xi));
+              yPts.push(gridToPrec(yi));
+            });
+            if (ring.length > longestLen) { longestLen = ring.length; longestRing = ring; }
+          });
+        });
+
+        contourTraces.push({
+          type: 'scatter', mode: 'lines',
+          x: xPts, y: yPts,
+          line: { color: 'rgba(85,85,85,0.65)', width: 1.3, dash: sigma < 0 ? 'dash' : 'solid' },
+          showlegend: false, hoverinfo: 'none'
+        });
+
+        // Label at midpoint of longest ring
+        if (longestRing) {
+          const [lxi, lyi] = longestRing[Math.floor(longestRing.length / 2)];
+          annotations.push({
+            x: gridToDm32(lxi), y: gridToPrec(lyi),
+            text: `${sigma > 0 ? '+' : ''}${sigma}σ`,
+            showarrow: false,
+            font: { size: 11, color: '#333', family: 'Inter, sans-serif' },
+            bgcolor: 'rgba(255,255,255,0.75)', borderpad: 2
+          });
+        }
+      });
+
+      // Dummy trace to activate the top IO x-axis (x2)
+      const dummyTrace = {
+        type: 'scatter', mode: 'markers',
+        x: [(dm32Unique[0] + dm32Unique[nx - 1]) / 2 + LAMBDA_IO_OFFSET],
+        y: [(precUnique[0] + precUnique[ny - 1]) / 2],
+        xaxis: 'x2', yaxis: 'y',
+        marker: { size: 0.1, opacity: 0 },
+        showlegend: false, hoverinfo: 'skip'
+      };
+
       Plotly.newPlot('heatmap-plot', [{
         type: 'heatmap',
         z: zArr,
@@ -365,20 +467,28 @@
           tickfont:  { size: 12, family: 'Inter, sans-serif', color: '#5A6A7E' },
           titlefont: { size: 13, family: 'Inter, sans-serif', color: '#5A6A7E' }
         }
-      }], {
+      }, ...contourTraces, dummyTrace], {
         xaxis: {
           title: { text: 'Δm²₃₂ (NO) [×10⁻³ eV²]', font: { size: 14 } },
           tickfont: { size: 13 }, color: '#5A6A7E'
         },
+        xaxis2: {
+          overlaying: 'x', side: 'top',
+          range: [dm32Unique[0] + LAMBDA_IO_OFFSET, dm32Unique[nx - 1] + LAMBDA_IO_OFFSET],
+          title: { text: 'Δm²₃₂ (IO) [×10⁻³ eV²]', font: { size: 14 } },
+          tickformat: '.2f',
+          tickfont: { size: 13 }, color: '#5A6A7E'
+        },
         yaxis: {
-          title: { text: 'JUNO Precision on |Δm²₃₂| [%]', font: { size: 14 } },
+          title: { text: 'Measurement Precision on |Δm²₃₂| [%]', font: { size: 14 } },
           tickfont: { size: 13 }, color: '#5A6A7E'
         },
         autosize: true,
-        margin: { l: 70, r: 80, t: 25, b: 70 },
+        margin: { l: 70, r: 80, t: 60, b: 70 },
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor:  'rgba(0,0,0,0)',
         font: { family: 'Inter, sans-serif', color: '#5A6A7E' },
+        annotations: annotations,
         shapes: []
       }, { displayModeBar: false, staticPlot: true })
       .then(() => updateHeatmapCrosshair(currentDm32, currentPrecision));
@@ -411,6 +521,16 @@
         updateMetricCards(getNearestGridPoint(currentDm32, currentPrecision));
         updateHeatmapCrosshair(currentDm32, currentPrecision);
       });
+
+      // λ slider — display only, no physics effect
+      const LAMBDA_VALUES = Array.from({length: 11}, (_, i) => 0.115 + i * 0.001);
+      const sliderLambda = document.getElementById('slider-lambda');
+      const lambdaValDisplay = document.getElementById('lambda-val');
+      sliderLambda.addEventListener('input', () => {
+        const idx = parseInt(sliderLambda.value);
+        lambdaValDisplay.textContent = LAMBDA_VALUES[idx].toFixed(3);
+        sliderLambda.style.setProperty('--fill', `${(idx / 10) * 100}%`);
+      });
     }
 
     // ── Generate button ────────────────────────────────────────
@@ -419,8 +539,8 @@
         const nearest = getNearestGridPoint(currentDm32, currentPrecision);
         if (!nearest) return;
 
-        const path = '../../triangles/v3/triangle_i' + padTwo(nearest.i) +
-                     '_j' + padTwo(nearest.j) + '.png';
+        const path = '../../triangles/v6/triangle_i' + padTwo(nearest.i) +
+                     '_j' + padTwo(nearest.j) + '.jpg';
         const container = document.getElementById('triangle-container');
         const subtitle  = document.querySelector('.col-center .card-subtitle');
 

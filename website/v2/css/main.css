@@ -78,7 +78,7 @@ body {
 }
 
 .brand-sub {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--text-secondary);
 }
@@ -350,6 +350,13 @@ input[type="range"]::-moz-range-track {
   color: var(--text-tertiary);
 }
 
+.lambda-placeholder-note {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-tertiary);
+}
+
 /* Generate button */
 #generate-btn {
   margin-top: auto;
@@ -546,24 +553,26 @@ input[type="range"]::-moz-range-track {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  transition: background 0.15s, color 0.15s;
+  background: #EBF2FF;
+  border: 1px solid #C7D9F7;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
   white-space: nowrap;
 }
 
 .tab:hover {
-  background: #F4F7FB;
+  background: #DBEAFE;
   color: var(--text-primary);
-}
-
-.tab.active {
-  background: #EEF4FF;
-  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2.5px var(--accent);
 }
 
 .tab i {
   font-size: 15px;
+}
+
+a.tab {
+  text-decoration: none;
+  cursor: pointer;
 }
 
 /* ─── Responsive ──────────────────────────────────────────── */
