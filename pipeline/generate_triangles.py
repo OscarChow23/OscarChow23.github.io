@@ -15,6 +15,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 from tqdm import tqdm
+from matplotlib.ticker import MaxNLocator
 
 
 PARAMETERS = ["delta_in_pi", "ss2th13", "ssth23", "absdm32"]
@@ -25,10 +26,13 @@ PARAMETERS_LATEX = {
     "absdm32":     r"$|\Delta m^2_{32}|$ [$\times 10^{-3}$ eV$^2$]",
 }
 
+AXIS_LABEL_FONT_SIZE = 18
+TICK_LABEL_FONT_SIZE = 15
+
 NPZ_PATH = os.path.normpath(os.path.join(
     os.path.dirname(__file__), "..", "Artur_code", "bayes_factors_and_rmse_prel.npz"))
 TRIANGLES_DIR = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), "..", "triangles"))
+    os.path.dirname(__file__), "..", "triangles", "v3"))
 
 
 def get_quantile_threshold(hist, quantile=0.6827):
@@ -52,7 +56,7 @@ def bf_to_sigma(bf, two_sided=True):
 
 def draw_triangle(data, i_idx, j_idx, dm32_values, precision_values,
                   bfs, rmses, fractional_rmses, sigmas, out_path):
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(12, 12))
     ax_triangle = fig.add_subplot(111)
     ax_triangle.axis("off")
 
@@ -77,17 +81,17 @@ def draw_triangle(data, i_idx, j_idx, dm32_values, precision_values,
                 mask_no = histno >= thr_joint
                 mask_io = histio >= thr_joint
 
-                ax.stairs(histno, edges, color="blue", alpha=0.7)
-                ax.stairs(histio, edges, color="red", alpha=0.7)
+                ax.stairs(histno, edges, color="blue", alpha=0.7, linewidth=1.2)
+                ax.stairs(histio, edges, color="red", alpha=0.7, linewidth=1.2)
                 ax.stairs(histno * mask_no, edges, fill=True, color="blue", alpha=0.3)
                 ax.stairs(histio * mask_io, edges, fill=True, color="red", alpha=0.3)
 
                 if j == 0:
-                    ax.set_ylabel("Posterior Density", fontsize=10)
+                    ax.set_ylabel("Posterior Density", fontsize=AXIS_LABEL_FONT_SIZE)
                 if i == n - 1:
-                    ax.set_xlabel(PARAMETERS_LATEX[pari], fontsize=10)
+                    ax.set_xlabel(PARAMETERS_LATEX[pari], fontsize=AXIS_LABEL_FONT_SIZE)
 
-                ax.grid(True)
+                ax.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
                 ax.set_xlim(edges[0], edges[-1])
                 ax.set_ylim(0, max(histno.max(), histio.max()) * 1.2)
 
@@ -117,43 +121,27 @@ def draw_triangle(data, i_idx, j_idx, dm32_values, precision_values,
                            colors="red", linestyles=["-", "-.", ":"])
 
                 if j == 0:
-                    ax.set_ylabel(PARAMETERS_LATEX[pari], fontsize=10)
+                    ax.set_ylabel(PARAMETERS_LATEX[pari], fontsize=AXIS_LABEL_FONT_SIZE)
                 if i == n - 1:
-                    ax.set_xlabel(PARAMETERS_LATEX[parj], fontsize=10)
+                    ax.set_xlabel(PARAMETERS_LATEX[parj], fontsize=AXIS_LABEL_FONT_SIZE)
 
-                ax.grid(True)
+                ax.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
                 ax.set_xlim(xedges[0], xedges[-1])
                 ax.set_ylim(yedges[0], yedges[-1])
 
             if j > 0:
                 ax.set_yticks([])
+            else:
+                ax.yaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
+                ax.tick_params(axis="y", labelsize=TICK_LABEL_FONT_SIZE)
             if i < n - 1:
                 ax.set_xticks([])
+            else:
+                ax.xaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
+                ax.tick_params(axis="x", labelsize=TICK_LABEL_FONT_SIZE)
 
-    ax_triangle.set_title(
-        f"dm32: {dm32_values[i_idx]:.2f} [e-3] eV^2, "
-        f"prec: {precision_values[j_idx]:.2f}%"
-    )
-
-    bf_val = bfs[i_idx, j_idx]
-    rmse_val = rmses[i_idx, j_idx]
-    frac_rmse_val = fractional_rmses[i_idx, j_idx]
-    sigma_val = sigmas[i_idx, j_idx]
-
-    info_text = (
-        f"BF: {bf_val:.1f}\n"
-        f"RMSE: {rmse_val:.1f}\n\n"
-        f"Frac RMSE: {frac_rmse_val * 100:.2f}%\n"
-        f"Sigma: {sigma_val:.2f}\n"
-    )
-
-    ax_triangle.text(
-        0.6, 0.98, info_text, transform=ax_triangle.transAxes,
-        fontsize=10, va="top", ha="left",
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8)
-    )
-
-    fig.savefig(out_path, dpi=150)
+    plt.tight_layout(pad=0.3)
+    fig.savefig(out_path, dpi=200)
     plt.close(fig)
 
 
