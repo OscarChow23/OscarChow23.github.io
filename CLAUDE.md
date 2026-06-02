@@ -176,12 +176,9 @@ NOvA+JUNO_Website_Release/
 ├── triangles/                            ← pre-generated PNGs (git-lfs or Zenodo)
 │   └── triangle_i{i:02d}_j{j:02d}.png
 └── website/
-    ├── v1/                               ← UI variant 1: Scientific/Publication
-    │   └── index.html
-    ├── v2/                               ← UI variant 2: Dashboard/Dark theme
-    │   └── index.html
-    └── v3/                               ← UI variant 3: Outreach/Public-facing
+    └── v1/                               ← Dashboard / Warm Neutral (primary UI)
         └── index.html
+    # Future: v2 (scientific), v3 (outreach) — not yet implemented
 ```
 
 ---
@@ -270,9 +267,9 @@ Zero-padded to 2 digits. Extend to 3 digits (:03d) if grid exceeds 99 in either 
 
 ---
 
-### M3 — website/v1, v2, v3
+### M3 — website UI variants
 **Input:** `data/bf_grid.csv`, `data/manifest.json`, `triangles/` folder
-**Output:** `website/v1/index.html`, `website/v2/index.html`, `website/v3/index.html`
+**Output:** `website/v1/index.html` (implemented); `website/v2/`, `website/v3/` (planned alternate aesthetics)
 
 Each variant is a **single self-contained HTML file** with all CSS and JS inline. No shared code between variants. No build step required — open index.html in a browser directly.
 
@@ -297,11 +294,11 @@ Each variant is a **single self-contained HTML file** with all CSS and JS inline
 
 **Variants differ only in aesthetics and layout:**
 
-## Visual Design Reference (v2 — Dashboard Style)
+## Visual Design Reference (v1 — Dashboard Style)
 
 Reference image: Wellmetrix dashboard (Dribbble)
 
-Extract and apply these specific aesthetic elements for v2:
+Extract and apply these specific aesthetic elements for v1:
 
 **Background & surface:**
 - Page background: warm off-white, e.g. #f5f0eb or #f0ebe4
@@ -349,7 +346,13 @@ Extract and apply these specific aesthetic elements for v2:
 - Warm neutral accent palette throughout — no loud blues 
   or purples
 
-#### v1 — Scientific / Publication Style
+#### v1 — Dashboard / Warm Neutral (Wellmetrix-inspired) — **implemented**
+Follow the Visual Design Reference section above exactly.
+Warm off-white background, card-based layout, large 
+numerical readouts for BF and sigma, DM Sans typography,
+custom slider styling in warm brown accent.
+
+#### v2 — Scientific / Publication Style (planned)
 - White background, clean minimal layout
 - Font: Georgia or similar serif, or a web-hosted scientific font
 - Tight layout matching a paper figure supplement aesthetic
@@ -358,13 +361,7 @@ Extract and apply these specific aesthetic elements for v2:
 - Triangle PNG displayed at natural size, bordered with thin rule
 - Colourbar matches matplotlib RdBu as closely as possible
 
-#### v2 — Dashboard / Warm Neutral (Wellmetrix-inspired)
-Follow the Visual Design Reference section above exactly.
-Warm off-white background, card-based layout, large 
-numerical readouts for BF and sigma, DM Sans typography,
-custom slider styling in warm brown accent.
-
-#### v3 — Outreach / Public-Facing
+#### v3 — Outreach / Public-Facing (planned)
 - Warm, accessible colour palette (light background, friendly typography)
 - Large readable font (sans-serif), generous spacing
 - Each slider has a one-sentence plain-English tooltip explaining its physical meaning
