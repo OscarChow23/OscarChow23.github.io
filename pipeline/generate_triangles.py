@@ -32,7 +32,7 @@ TICK_LABEL_FONT_SIZE = 11
 NPZ_PATH = os.path.normpath(os.path.join(
     os.path.dirname(__file__), "..", "Artur_code", "bayes_factors_and_rmse_prel.npz"))
 TRIANGLES_DIR = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), "..", "triangles", "v6"))
+    os.path.dirname(__file__), "..", "triangles", "v7"))
 
 
 def get_quantile_threshold(hist, quantile=0.6827):
@@ -136,7 +136,7 @@ def draw_triangle(data, i_idx, j_idx, fig, panel_axes, out_path):
                 ax.xaxis.set_major_locator(MaxNLocator(nbins=3, prune='both'))
                 ax.tick_params(axis="x", labelsize=TICK_LABEL_FONT_SIZE)
 
-    fig.savefig(out_path, dpi=80, format='jpeg', pil_kwargs={'quality': 85})
+    fig.savefig(out_path, dpi=80, format='jpeg', bbox_inches='tight', pil_kwargs={'quality': 85})
 
 
 def main():
@@ -156,16 +156,13 @@ def main():
     # Create figure and all panel axes once; reuse across iterations
     n = len(PARAMETERS)
     fig = plt.figure(figsize=(8, 8))
-    ax_bg = fig.add_subplot(111)
-    ax_bg.axis("off")
     panel_axes = {}
     for pi in range(n):
         for pj in range(n):
             if pi < pj:
                 continue
-            panel_axes[(pi, pj)] = ax_bg.inset_axes(
+            panel_axes[(pi, pj)] = fig.add_axes(
                 [pj / n, 1 - (pi + 1) / n, 1 / n, 1 / n])
-    plt.tight_layout(pad=0.3)
 
     total = n_dm32 * n_prec
     with tqdm(total=total, desc="Triangles") as pbar:
