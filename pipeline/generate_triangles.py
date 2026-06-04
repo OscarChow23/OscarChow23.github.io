@@ -71,7 +71,7 @@ def draw_triangle(data, i_idx, j_idx, fig, panel_axes, out_path):
                 histio = data[f"plot_{pari}_hist_io_{postfix}"]
                 edges = data[f"plot_{pari}_edges_{postfix}"][0]
 
-                hist_joint = histno + histio
+                hist_joint = np.concatenate([histno, histio])
                 thr_joint = get_quantile_threshold(hist_joint, quantile=0.6827)
 
                 mask_no = histno >= thr_joint
@@ -102,14 +102,9 @@ def draw_triangle(data, i_idx, j_idx, fig, panel_axes, out_path):
                 ycenters = 0.5 * (yedges[:-1] + yedges[1:])
                 X, Y = np.meshgrid(xcenters, ycenters)
 
-                hist_joint = histno + histio
+                hist_joint = np.concatenate([histno, histio])
                 thr_joint = get_quantile_threshold(
                     hist_joint, quantile=[0.9973, 0.9545, 0.6827])
-
-                ax.pcolormesh(xedges, yedges, histno,
-                              shading="auto", alpha=0.5, cmap="Blues")
-                ax.pcolormesh(xedges, yedges, histio,
-                              shading="auto", alpha=0.5, cmap="Reds")
 
                 ax.contour(X, Y, histno, levels=thr_joint,
                            colors="blue", linestyles=["-", "-.", ":"])
