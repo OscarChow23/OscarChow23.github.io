@@ -1,9 +1,20 @@
 # Data files (keep local, don't commit)
 Artur_code/
 Reference_material/
-triangles/
 data/*.npz
 data/*.pkl
+
+# Triangle plots — only v8 is committed
+triangles/v1/
+triangles/v2/
+triangles/v3/
+triangles/v4/
+triangles/v5/
+triangles/v6/
+triangles/v7/
+
+# Website variants not deployed
+website/v1/
 
 # Environment
 .venv/
@@ -13,9 +24,9 @@ __pycache__/
 
 # OS
 .DS_Store
-.claude/
 *.swp
 
 # IDE
 .vscode/
 .cursor/
+.claude/

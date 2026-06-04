@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neutrino Mass Ordering Sensitivity</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tabler Icons (webfont) -->
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css" rel="stylesheet" />
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.35.2/plotly.min.js"></script>
+
+  <!-- D3 v7 (for d3.contours() used in sigma iso-contour computation) -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="./css/main.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════ HEADER ══ -->
+  <header id="header">
+
+    <div class="header-left">
+      <img src="./assets/NOvALogoPrideChevron.png" alt="NOvA logo" />
+      <div class="header-brand">
+        <span class="brand-name">Neutrino Mass Ordering Sensitivity</span>
+        <span class="brand-sub">Interactively explore NOvA's ordering preference as a function of an external Δm² constraint</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="help-btn" class="icon-btn" title="Take a guided tour">
+        <i class="ti ti-help"></i>
+      </button>
+    </div>
+
+  </header>
+
+  <!-- ══════════════════════════════════════════ MAIN ══════ -->
+  <main id="main">
+
+    <!-- ── LEFT COLUMN: Parameter Controls ───────────────── -->
+    <div class="col col-left">
+      <div class="card controls-card">
+
+        <div class="controls-card-header">
+          <span class="card-title">Measurement Scenario</span>
+          <span class="card-subtitle">External Δm²₃₂ central value and precision</span>
+        </div>
+
+        <!-- Slider 1: Δm²₃₂ central value -->
+        <div class="slider-group">
+          <div class="slider-label-row">
+            <label for="slider-dm32">
+              &Delta;m&sup2;<sub>32</sub> (NO)
+              [&times;10<sup>&minus;3</sup> eV&sup2;]
+            </label>
+            <span class="slider-current-val">&mdash;</span>
+          </div>
+          <input
+            type="range"
+            id="slider-dm32"
+            min="2.20" max="2.60" value="2.42" step="0.01"
+            style="--fill: 55%;"
+            aria-label="Δm²₃₂ central value under normal ordering"
+          />
+          <div class="slider-range-labels">
+            <span>&mdash;</span>
+            <span>&mdash;</span>
+          </div>
+        </div>
+
+        <!-- Slider 2: JUNO precision -->
+        <div class="slider-group">
+          <div class="slider-label-row">
+            <label for="slider-prec">
+              External precision on
+              |&Delta;m&sup2;<sub>32</sub>| [%]
+            </label>
+            <span class="slider-current-val">&mdash;</span>
+          </div>
+          <input
+            type="range"
+            id="slider-prec"
+            min="0.20" max="1.00" value="0.54" step="0.01"
+            style="--fill: 42.5%;"
+            aria-label="External precision on |Δm²₃₂|"
+          />
+          <div class="slider-range-labels">
+            <span>&mdash;</span>
+            <span>&mdash;</span>
+          </div>
+        </div>
+
+        <!-- Slider 3: λ offset (placeholder — not yet wired to data) -->
+        <div class="slider-group" id="lambda-slider-group">
+          <div class="slider-label-row">
+            <label for="slider-lambda">
+              &lambda; offset (NO&ndash;IO)
+              [&times;10<sup>&minus;3</sup> eV&sup2;]
+            </label>
+            <span class="slider-current-val" id="lambda-val">0.120</span>
+          </div>
+          <input
+            type="range"
+            id="slider-lambda"
+            min="0" max="10" step="1" value="5"
+            style="--fill: 50%;"
+            title="Placeholder — λ variation not yet active"
+          />
+          <div class="slider-range-labels">
+            <span>0.115</span>
+            <span>0.125</span>
+          </div>
+          <p class="lambda-placeholder-note">Placeholder &mdash; &lambda; variation not yet active</p>
+        </div>
+
+        <div class="generate-wrap">
+          <button id="generate-btn"><i class="ti ti-chart-line"></i> Generate Posterior Summary</button>
+        </div>
+
+        <div id="tour-nudge" class="tour-nudge">
+          New here? Click <i class="ti ti-help"></i> in the top right to take a guided tour.
+          <button id="dismiss-nudge" class="tour-nudge-dismiss" aria-label="Dismiss">&times;</button>
+        </div>
+
+      </div>
+
+      <div class="card physics-card">
+        <div class="physics-card-header">
+          <i class="ti ti-info-circle"></i>
+          <span>About the Bayes factor</span>
+        </div>
+        <p class="physics-card-body">
+          The Bayes factor quantifies how much more probable the observed NOvA data is under normal ordering than inverted ordering. A value greater than 1 favours normal ordering (blue); less than 1 favours inverted ordering (red). The strength of this preference depends critically on how precisely an external experiment — such as JUNO — constrains Δm²₃₂.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- ── CENTRE COLUMN: Triangle plot display ───────────── -->
+    <div class="col col-center">
+      <div class="card plot-card">
+
+        <div class="card-header-row">
+          <div>
+            <span class="card-title">NOvA Posterior Summary</span>
+            <span class="card-subtitle">Marginalized posterior probability densities from a Bayesian fit</span>
+          </div>
+        </div>
+
+        <div class="plot-placeholder" id="triangle-container">
+          <i class="ti ti-photo" style="font-size: 48px; color: #BFCFF7;"></i>
+          <p>Click &lsquo;Generate Posterior Summary&rsquo; to load output</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── RIGHT COLUMN: Heatmap + Metric cards ───────────── -->
+    <div class="col col-right">
+
+      <!-- Heatmap card -->
+      <div class="card heatmap-card">
+        <div class="card-header-row">
+          <div>
+            <span class="card-title">NOvA Sensitivity to the Neutrino Mass Ordering</span>
+            <span class="card-subtitle">Bayes factor vs. external Δm²₃₂ constraint</span>
+          </div>
+        </div>
+        <div class="heatmap-wrap">
+          <div id="heatmap-plot"></div>
+          <div
+            id="heatmap-handle"
+            title="Drag, or use arrow keys when focused, to set parameters"
+            role="slider"
+            tabindex="0"
+            aria-label="2D parameter selector — left/right adjusts Δm²₃₂, up/down adjusts precision"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Metric cards — hidden until Generate is clicked -->
+      <div class="metric-cards hidden" id="metric-cards" aria-live="polite" aria-atomic="true">
+        <div class="metric-card">
+          <div class="metric-label">Bayes Factor</div>
+          <div class="metric-value" id="bf-value">&mdash;</div>
+          <div class="metric-sub">log Z</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Significance</div>
+          <div class="metric-value" id="sigma-value">&mdash;</div>
+          <div class="metric-sub">&sigma;</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Frac. RMSE</div>
+          <div class="metric-value" id="frac-rmse-value">&mdash;</div>
+          <div class="metric-sub">|rmse / bf|</div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════ BOTTOM NAV ══ -->
+  <nav id="bottom-nav">
+    <a class="tab" href="https://arxiv.org/" target="_blank" rel="noopener noreferrer" id="arxiv-link" title="arXiv paper (link to be updated on release)"><i class="ti ti-file-text"></i> arXiv</a>
+    <a class="tab" href="https://novaexperiment.fnal.gov" target="_blank" rel="noopener noreferrer"><i class="ti ti-atom"></i> NOvA</a>
+    <a class="tab" href="https://novaexperiment.fnal.gov/data-releases/" target="_blank" rel="noopener noreferrer"><i class="ti ti-database"></i> Data Releases</a>
+  </nav>
+
+  <!-- ══════════════════════════════════════════ INTERACTIVITY ══ -->
+  <script>
+  (function () {
+    'use strict';
+
+    // ── Global state ───────────────────────────────────────────
+    let gridManifest = [], bfData = [], bfGrid2D = [];
+    let dm32Unique = [], precUnique = [];
+    let dm32Min, dm32Max, precMin, precMax;
+    let currentDm32 = null, currentPrecision = null;
+    let triangleImg = null;
+    let imageRequestId = 0;
+    let dataReady = false;
+
+    // ── Controls enable/disable ────────────────────────────────
+    function setControlsEnabled(enabled) {
+      ['slider-dm32', 'slider-prec', 'slider-lambda', 'generate-btn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = !enabled;
+      });
+      const handle = document.getElementById('heatmap-handle');
+      if (handle) handle.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
+    // Disable everything until data loads
+    document.addEventListener('DOMContentLoaded', () => setControlsEnabled(false));
+
+    // ── Sigma contour thresholds (log₁₀ BF values for ±1/2/3σ) ──
+    const SIGMA_CONTOUR_THRESHOLDS = [
+      { sigma:  3, log10_bf:  2.5675 },
+      { sigma:  2, log10_bf:  1.3420 },
+      { sigma:  1, log10_bf:  0.8344 },
+      { sigma:  0, log10_bf:  0      },
+      { sigma: -1, log10_bf: -0.8344 },
+      { sigma: -2, log10_bf: -1.3420 },
+      { sigma: -3, log10_bf: -2.5675 },
+    ];
+    const LAMBDA_IO_OFFSET = 0.12;
+
+    // ── Helpers ────────────────────────────────────────────────
+    function padTwo(n) { return String(n).padStart(2, '0'); }
+
+    function fmtNum(x, dp) {
+      if (x == null || !isFinite(Number(x))) return '—';
+      return Number(x).toFixed(dp);
+    }
+
+    function getNearestGridPoint(dm32, precision) {
+      if (dm32 == null || precision == null || !isFinite(dm32) || !isFinite(precision)) return null;
+      if (!gridManifest.length) return null;
+      const dr = dm32Max - dm32Min || 1;
+      const pr = precMax - precMin || 1;
+      let best = null, bestDist = Infinity;
+      for (const e of gridManifest) {
+        const d = Math.sqrt(
+          ((e.dm32_no - dm32) / dr) ** 2 +
+          ((e.precision - precision) / pr) ** 2
+        );
+        if (d < bestDist) { bestDist = d; best = e; }
+      }
+      return best;
+    }
+
+    // ── Metric cards ───────────────────────────────────────────
+    function updateMetricCards(entry) {
+      const mcEl        = document.getElementById('metric-cards');
+      const bfEl        = document.getElementById('bf-value');
+      const sigmaEl     = document.getElementById('sigma-value');
+      const fracRmseEl  = document.getElementById('frac-rmse-value');
+
+      // reveal cards
+      mcEl.classList.remove('hidden');
+
+      if (!entry) {
+        bfEl.textContent       = '—';
+        sigmaEl.textContent    = '—';
+        fracRmseEl.textContent = '—';
+        bfEl.style.color       = '#1A2332';
+        sigmaEl.style.color    = '#1A2332';
+        fracRmseEl.style.color = '#1A2332';
+        return;
+      }
+
+      const csvRow  = (bfGrid2D[entry.i] && bfGrid2D[entry.i][entry.j]) || null;
+      const fracRmse = csvRow && isFinite(csvRow.frac_rmse) ? csvRow.frac_rmse : null;
+      fracRmseEl.textContent = fracRmse != null ? fracRmse.toFixed(3) : '—';
+      fracRmseEl.style.color = fracRmse != null ? '#3B82F6' : '#1A2332';
+
+      const bf    = entry.bf    != null ? Number(entry.bf)    : null;
+      const sigma = entry.sigma != null ? Number(entry.sigma) : null;
+
+      // BF display
+      if (bf == null || !isFinite(bf)) {
+        bfEl.textContent = '—';
+      } else if (Math.abs(bf) > 9999) {
+        bfEl.textContent = bf.toExponential(2);
+      } else {
+        bfEl.textContent = bf.toFixed(1);
+      }
+
+      // Sigma display
+      if (sigma == null || !isFinite(sigma)) {
+        sigmaEl.textContent = '—';
+        sigmaEl.style.color = '#1A2332';
+      } else if (sigma >= 8) {
+        sigmaEl.textContent = '>8σ';
+        sigmaEl.style.color = '#3B82F6';
+      } else if (sigma <= -8) {
+        sigmaEl.textContent = '<−8σ';
+        sigmaEl.style.color = '#EF4444';
+      } else {
+        sigmaEl.textContent = (sigma >= 0 ? '+' : '') + sigma.toFixed(2) + ' σ';
+        sigmaEl.style.color = sigma > 0 ? '#3B82F6' : (sigma < 0 ? '#EF4444' : '#1A2332');
+      }
+
+      // BF colour
+      if (bf != null && isFinite(bf)) {
+        bfEl.style.color = bf > 1 ? '#3B82F6' : (bf < 1 ? '#EF4444' : '#1A2332');
+      } else {
+        bfEl.style.color = '#1A2332';
+      }
+    }
+
+    // ── Crosshair ──────────────────────────────────────────────
+    // Plotly draws the crosshair lines in data coords, mapped through the
+    // live axis range (which a heatmap auto-pads by half a cell). The handle
+    // and click-to-data inverse must use the SAME mapping, otherwise the dot
+    // drifts inward from the intersection. Use axis.d2p / axis.p2d when
+    // available; fall back to the true `xa.range` if not.
+    function positionHandle(dm32, prec) {
+      const el = document.getElementById('heatmap-plot');
+      if (!el._fullLayout) return;
+      const xa = el._fullLayout.xaxis;
+      const ya = el._fullLayout.yaxis;
+      const xPx = (typeof xa.d2p === 'function')
+        ? xa.d2p(dm32)
+        : (dm32 - xa.range[0]) / (xa.range[1] - xa.range[0]) * xa._length;
+      const yPx = (typeof ya.d2p === 'function')
+        ? ya.d2p(prec)
+        : (ya.range[1] - prec) / (ya.range[1] - ya.range[0]) * ya._length;
+      const handle = document.getElementById('heatmap-handle');
+      handle.style.left = (xa._offset + xPx) + 'px';
+      handle.style.top  = (ya._offset + yPx) + 'px';
+      handle.style.display = 'block';
+    }
+
+    function getDataFromPixel(px, py) {
+      const el = document.getElementById('heatmap-plot');
+      const xa = el._fullLayout.xaxis;
+      const ya = el._fullLayout.yaxis;
+      const rawDm = (typeof xa.p2d === 'function')
+        ? xa.p2d(px - xa._offset)
+        : xa.range[0] + (px - xa._offset) / xa._length * (xa.range[1] - xa.range[0]);
+      const rawPr = (typeof ya.p2d === 'function')
+        ? ya.p2d(py - ya._offset)
+        : ya.range[1] - (py - ya._offset) / ya._length * (ya.range[1] - ya.range[0]);
+      return {
+        dm32: Math.max(dm32Min, Math.min(dm32Max, rawDm)),
+        prec: Math.max(precMin, Math.min(precMax, rawPr))
+      };
+    }
+
+    function isInPlottingArea(px, py) {
+      const el = document.getElementById('heatmap-plot');
+      if (!el || !el._fullLayout) return false;
+      const xa = el._fullLayout.xaxis;
+      const ya = el._fullLayout.yaxis;
+      const PAD = 4; // small forgiveness near the edges
+      return px >= xa._offset - PAD
+          && px <= xa._offset + xa._length + PAD
+          && py >= ya._offset - PAD
+          && py <= ya._offset + ya._length + PAD;
+    }
+
+    function updateHeatmapCrosshair(dm32, precision) {
+      const el = document.getElementById('heatmap-plot');
+      // Extend the lines to the live axis range (which includes the heatmap's
+      // half-cell pad) so they visually span the whole coloured region.
+      const xLo = dm32Min;
+      const xHi = dm32Max;
+      const yLo = precMin;
+      const yHi = precMax;
+      Plotly.relayout('heatmap-plot', {
+        shapes: [
+          {
+            type: 'line', xref: 'x', yref: 'y',
+            x0: dm32, x1: dm32, y0: yLo, y1: yHi,
+            line: { color: '#1A2332', width: 1, dash: 'dot' }, opacity: 0.6
+          },
+          {
+            type: 'line', xref: 'x', yref: 'y',
+            x0: xLo, x1: xHi, y0: precision, y1: precision,
+            line: { color: '#1A2332', width: 1, dash: 'dot' }, opacity: 0.6
+          }
+        ]
+      });
+      positionHandle(dm32, precision);
+    }
+
+    // ── Handle drag (Pointer Events) ───────────────────────────
+    function wireHandleDrag() {
+      const handle = document.getElementById('heatmap-handle');
+      const wrap   = document.querySelector('.heatmap-wrap');
+      let activePointerId = null;
+
+      function applyAt(clientX, clientY) {
+        const rect = wrap.getBoundingClientRect();
+        const { dm32, prec } = getDataFromPixel(clientX - rect.left, clientY - rect.top);
+        currentDm32      = dm32;
+        currentPrecision = prec;
+        const sliderDm32 = document.getElementById('slider-dm32');
+        const sliderPrec = document.getElementById('slider-prec');
+        sliderDm32.value = dm32;
+        sliderPrec.value = prec;
+        setSliderFill(sliderDm32, dm32, dm32Min, dm32Max);
+        setSliderFill(sliderPrec, prec, precMin, precMax);
+        sliderDm32.closest('.slider-group').querySelector('.slider-current-val').textContent = dm32.toFixed(3);
+        sliderPrec.closest('.slider-group').querySelector('.slider-current-val').textContent = prec.toFixed(2);
+        updateHeatmapCrosshair(dm32, prec);
+        updateMetricCards(getNearestGridPoint(dm32, prec));
+      }
+
+      function releaseCapture() {
+        if (activePointerId == null) return;
+        try { wrap.releasePointerCapture(activePointerId); } catch (_) {}
+        activePointerId = null;
+        handle.classList.remove('dragging');
+      }
+
+      wrap.addEventListener('pointerdown', e => {
+        if (!dataReady) return;
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        const rect = wrap.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const onHandle = !!e.target.closest('#heatmap-handle');
+        // Reject clicks outside the plotting rectangle (colorbar, axis labels, etc.)
+        if (!onHandle && !isInPlottingArea(px, py)) return;
+        activePointerId = e.pointerId;
+        try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+        handle.classList.add('dragging');
+        if (!onHandle) applyAt(e.clientX, e.clientY);
+        e.preventDefault();
+      });
+
+      wrap.addEventListener('pointermove', e => {
+        if (activePointerId == null || e.pointerId !== activePointerId) return;
+        applyAt(e.clientX, e.clientY);
+      });
+
+      function endDrag(e) {
+        if (activePointerId == null) return;
+        if (e && e.pointerId != null && e.pointerId !== activePointerId) return;
+        const wasDragging = activePointerId != null;
+        releaseCapture();
+        if (wasDragging) document.getElementById('generate-btn').click();
+      }
+
+      wrap.addEventListener('pointerup',     endDrag);
+      wrap.addEventListener('pointercancel', endDrag);
+
+      // Recover state if the window loses focus mid-drag (release outside browser)
+      window.addEventListener('blur', () => {
+        if (activePointerId != null) releaseCapture();
+      });
+
+      // Keyboard support: arrow keys nudge by one slider step;
+      // Shift+arrow nudges by 10×; Enter triggers Generate.
+      handle.addEventListener('keydown', (e) => {
+        if (!dataReady) return;
+        const sliderDm32 = document.getElementById('slider-dm32');
+        const sliderPrec = document.getElementById('slider-prec');
+        const stepDm = Number(sliderDm32.step) || 0.001;
+        const stepPr = Number(sliderPrec.step) || 0.001;
+        const mul = e.shiftKey ? 10 : 1;
+        let dm = currentDm32, pr = currentPrecision, handled = true;
+        switch (e.key) {
+          case 'ArrowLeft':  dm = Math.max(dm32Min, dm - stepDm * mul); break;
+          case 'ArrowRight': dm = Math.min(dm32Max, dm + stepDm * mul); break;
+          case 'ArrowDown':  pr = Math.max(precMin, pr - stepPr * mul); break;
+          case 'ArrowUp':    pr = Math.min(precMax, pr + stepPr * mul); break;
+          case 'Home':       dm = dm32Min; break;
+          case 'End':        dm = dm32Max; break;
+          case 'PageDown':   pr = precMin; break;
+          case 'PageUp':     pr = precMax; break;
+          case 'Enter':
+          case ' ':
+            document.getElementById('generate-btn').click();
+            e.preventDefault();
+            return;
+          default: handled = false;
+        }
+        if (!handled) return;
+        e.preventDefault();
+        currentDm32 = dm; currentPrecision = pr;
+        sliderDm32.value = dm; sliderPrec.value = pr;
+        setSliderFill(sliderDm32, dm, dm32Min, dm32Max);
+        setSliderFill(sliderPrec, pr, precMin, precMax);
+        sliderDm32.closest('.slider-group').querySelector('.slider-current-val').textContent = dm.toFixed(3);
+        sliderPrec.closest('.slider-group').querySelector('.slider-current-val').textContent = pr.toFixed(2);
+        updateHeatmapCrosshair(dm, pr);
+        updateMetricCards(getNearestGridPoint(dm, pr));
+      });
+    }
+
+    // ── Heatmap ────────────────────────────────────────────────
+    function initHeatmap() {
+      // Build O(N) lookup: "dm32_toFixed6|prec_toFixed6" → log10_bf
+      const lookup = new Map();
+      for (const row of bfData) {
+        const key = Number(row.dm32_no).toFixed(6) + '|' + Number(row.precision).toFixed(6);
+        const v = Number(row.log10_bf);
+        lookup.set(key, isFinite(v) ? v : (v > 0 ? 10 : -10));
+      }
+
+      // Build z[j][i]: rows = precUnique (y), columns = dm32Unique (x)
+      const zArr = precUnique.map(prec => {
+        return dm32Unique.map(dm32 => {
+          const key = dm32.toFixed(6) + '|' + prec.toFixed(6);
+          return lookup.get(key) ?? 0;
+        });
+      });
+
+      // ── Sigma contour computation via d3.contours() ────────────
+      const nx = dm32Unique.length;
+      const ny = precUnique.length;
+
+      // d3.contours expects flat row-major array: index = j*nx + i
+      const flatValues = new Float64Array(nx * ny);
+      for (let j = 0; j < ny; j++)
+        for (let i = 0; i < nx; i++)
+          flatValues[j * nx + i] = zArr[j][i];
+
+      const thresholds = SIGMA_CONTOUR_THRESHOLDS.map(t => t.log10_bf).sort((a, b) => a - b);
+      const contourPolygons = d3.contours().size([nx, ny]).thresholds(thresholds)(flatValues);
+
+      // Map grid index → data coordinate (uniform grid assumed).
+      // d3.contours emits coords in [0, nx], but cell i is centred at axis
+      // position i/(nx-1).  Divide by (nx-1)/(ny-1) so the upper bound lands
+      // exactly on the last data value rather than half a cell short.
+      const dm32Span = dm32Unique[nx - 1] - dm32Unique[0];
+      const precSpan = precUnique[ny - 1] - precUnique[0];
+      const gridToDm32 = xi => dm32Unique[0] + (xi / Math.max(1, nx - 1)) * dm32Span;
+      const gridToPrec = yi => precUnique[0] + (yi / Math.max(1, ny - 1)) * precSpan;
+      // Margin to keep annotation labels off the colorbar / outer axis.
+      const annotPadX = dm32Span * 0.04;
+      const annotPadY = precSpan * 0.04;
+      const clampDm32 = v => Math.max(dm32Unique[0] + annotPadX,
+                                       Math.min(dm32Unique[nx - 1] - annotPadX, v));
+      const clampPrec = v => Math.max(precUnique[0] + annotPadY,
+                                       Math.min(precUnique[ny - 1] - annotPadY, v));
+
+      const contourTraces = [];
+      const pendingLabels = []; // label positions + tangent data; angles added post-render
+      const GAP_HALF = 1;       // grid steps to omit on each side of label midpoint
+
+      contourPolygons.forEach(c => {
+        const sigmaInfo = SIGMA_CONTOUR_THRESHOLDS.find(t => Math.abs(t.log10_bf - c.value) < 1e-4);
+        if (!sigmaInfo || !c.coordinates.length) return;
+        const sigma = sigmaInfo.sigma;
+
+        // Skip boundary-tracing segments D3 adds to close polygon rings along grid edges.
+        const EPS = 0.05;
+        const isBoundarySeg = ([x1, y1], [x2, y2]) =>
+          (x1 <= EPS && x2 <= EPS) || (x1 >= nx - EPS && x2 >= nx - EPS) ||
+          (y1 <= EPS && y2 <= EPS) || (y1 >= ny - EPS && y2 >= ny - EPS);
+
+        // Pass 1: collect all visible chains and identify the longest one.
+        const allChains = [];
+        let longestIdx = -1, longestChainLen = 0;
+
+        c.coordinates.forEach(polygon => {
+          polygon.forEach(ring => {
+            const n = ring.length - 1;
+            let chain = [];
+            const flushChain = () => {
+              if (!chain.length) return;
+              allChains.push([...chain]);
+              if (chain.length > longestChainLen) {
+                longestChainLen = chain.length;
+                longestIdx = allChains.length - 1;
+              }
+              chain = [];
+            };
+            for (let k = 0; k < n; k++) {
+              if (isBoundarySeg(ring[k], ring[k + 1])) { flushChain(); continue; }
+              if (!chain.length) chain.push(ring[k]);
+              chain.push(ring[k + 1]);
+            }
+            flushChain();
+          });
+        });
+
+        // Pass 2: build xPts/yPts, inserting a gap in the longest chain for the label.
+        const xPts = [], yPts = [];
+        const addSegment = seg => {
+          if (seg.length < 2) return;
+          if (xPts.length && xPts[xPts.length - 1] !== null) { xPts.push(null); yPts.push(null); }
+          seg.forEach(([xi, yi]) => { xPts.push(gridToDm32(xi)); yPts.push(gridToPrec(yi)); });
+        };
+
+        allChains.forEach((chain, idx) => {
+          if (idx === longestIdx && chain.length >= GAP_HALF * 2 + 3) {
+            const mid = Math.floor(chain.length / 2);
+            addSegment(chain.slice(0, mid - GAP_HALF));
+            addSegment(chain.slice(mid + GAP_HALF + 1));
+          } else {
+            addSegment(chain);
+          }
+        });
+
+        contourTraces.push({
+          type: 'scatter', mode: 'lines',
+          x: xPts, y: yPts,
+          line: {
+            color: 'rgba(70,70,70,0.65)',
+            width: sigma === 0 ? 1.0 : 1.5,
+            dash: 'dot'
+          },
+          showlegend: false, hoverinfo: 'none'
+        });
+
+        // Store label position and local tangent for post-render angle computation.
+        if (longestIdx >= 0) {
+          const longestChain = allChains[longestIdx];
+          const mid = Math.floor(longestChain.length / 2);
+          const [lxi, lyi] = longestChain[mid];
+          const kk = Math.min(5, Math.max(1, Math.floor(longestChain.length / 4)));
+          const p1 = longestChain[Math.max(0, mid - kk)];
+          const p2 = longestChain[Math.min(longestChain.length - 1, mid + kk)];
+          const dx_data = gridToDm32(p2[0]) - gridToDm32(p1[0]);
+          const dy_data = gridToPrec(p2[1]) - gridToPrec(p1[1]);
+          const labelText = sigma > 0 ? `NO ${sigma}σ`
+                          : sigma < 0 ? `IO ${Math.abs(sigma)}σ`
+                          : 'NO | IO';
+          pendingLabels.push({
+            x: clampDm32(gridToDm32(lxi)),
+            y: clampPrec(gridToPrec(lyi)),
+            text: labelText,
+            dx_data,
+            dy_data
+          });
+        }
+      });
+
+      // Dummy trace to activate the top IO x-axis (x2)
+      const dummyTrace = {
+        type: 'scatter', mode: 'markers',
+        x: [(dm32Unique[0] + dm32Unique[nx - 1]) / 2 + LAMBDA_IO_OFFSET],
+        y: [(precUnique[0] + precUnique[ny - 1]) / 2],
+        xaxis: 'x2', yaxis: 'y',
+        marker: { size: 0.1, opacity: 0 },
+        showlegend: false, hoverinfo: 'skip'
+      };
+
+      Plotly.newPlot('heatmap-plot', [{
+        type: 'heatmap',
+        z: zArr,
+        x: dm32Unique,
+        y: precUnique,
+        colorscale: 'RdBu',
+        reversescale: true,
+        zmin: -5,
+        zmax: 5,
+        colorbar: {
+          title: { text: 'log₁₀(BF)', side: 'right' },
+          tickfont:  { size: 13, family: 'Inter, sans-serif', color: '#5A6A7E' },
+          titlefont: { size: 14, family: 'Inter, sans-serif', color: '#5A6A7E' },
+          thickness: 14, outlinewidth: 0, xpad: 6
+        }
+      }, ...contourTraces, dummyTrace], {
+        xaxis: {
+          title: { text: 'Δm²₃₂ (NO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
+          tickfont: { size: 13 }, color: '#5A6A7E',
+          showgrid: false, zeroline: false,
+          ticks: 'outside', ticklen: 5,
+          linecolor: '#5A6A7E', linewidth: 1,
+          range: [dm32Unique[0], dm32Unique[nx - 1]],
+          autorange: false
+        },
+        xaxis2: {
+          overlaying: 'x', side: 'top',
+          range: [dm32Unique[0] + LAMBDA_IO_OFFSET, dm32Unique[nx - 1] + LAMBDA_IO_OFFSET],
+          title: { text: 'Δm²₃₂ (IO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
+          tickformat: '.2f',
+          tickfont: { size: 13 }, color: '#5A6A7E',
+          showgrid: false, zeroline: false,
+          ticks: 'outside', ticklen: 5,
+          linecolor: '#5A6A7E', linewidth: 1
+        },
+        yaxis: {
+          title: { text: 'Measurement Precision on |Δm²₃₂| [%]', font: { size: 15 }, standoff: 6 },
+          tickfont: { size: 13 }, color: '#5A6A7E',
+          showgrid: false, zeroline: false,
+          ticks: 'outside', ticklen: 5,
+          linecolor: '#5A6A7E', linewidth: 1, mirror: true,
+          range: [precUnique[0], precUnique[ny - 1]],
+          autorange: false
+        },
+        autosize: true,
+        margin: { l: 65, r: 75, t: 58, b: 62 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor:  'rgba(0,0,0,0)',
+        font: { family: 'Inter, sans-serif', color: '#5A6A7E' },
+        annotations: [],
+        shapes: []
+      }, { displayModeBar: false, staticPlot: true })
+      .then(() => {
+        // Compute per-label textangle using actual pixel extents of the rendered axes.
+        const gd = document.getElementById('heatmap-plot');
+        const xPixLen = (gd._fullLayout && gd._fullLayout.xaxis._length) || 400;
+        const yPixLen = (gd._fullLayout && gd._fullLayout.yaxis._length) || 300;
+        const xPxPerUnit = xPixLen / dm32Span;
+        const yPxPerUnit = yPixLen / precSpan;
+
+        const finalAnnotations = pendingLabels.map(lb => {
+          // Screen y increases downward, so negate dy_data to get screen direction.
+          const angleDeg = Math.atan2(
+            -lb.dy_data * yPxPerUnit,
+             lb.dx_data * xPxPerUnit
+          ) * 180 / Math.PI;
+          return {
+            x: lb.x, y: lb.y,
+            text: lb.text,
+            showarrow: false,
+            textangle: angleDeg,
+            font: { size: 12, color: 'rgba(55,55,55,0.9)', family: 'Inter, sans-serif' },
+          };
+        });
+
+        // Align colorbar exactly with plot area using the y-axis domain (paper coords).
+        const ydom = gd._fullLayout.yaxis.domain;  // [bottom, top] in paper coords
+        const yMid = (ydom[0] + ydom[1]) / 2;
+        const yLen = ydom[1] - ydom[0];
+
+        return Plotly.relayout(gd, { annotations: finalAnnotations })
+          .then(() => Plotly.restyle(gd, {
+            'colorbar.lenmode': 'paper',
+            'colorbar.len': yLen,
+            'colorbar.yanchor': 'middle',
+            'colorbar.y': yMid
+          }, [0]));
+      })
+      .then(() => updateHeatmapCrosshair(currentDm32, currentPrecision));
+    }
+
+    // ── Resize handler ────────────────────────────────────────
+    function setupResizeHandler() {
+      let resizeTimer = null;
+      const onResize = () => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          const el = document.getElementById('heatmap-plot');
+          if (!el || !el._fullLayout || !window.Plotly) return;
+          Promise.resolve(Plotly.Plots.resize(el)).then(() => {
+            if (currentDm32 != null && currentPrecision != null) {
+              updateHeatmapCrosshair(currentDm32, currentPrecision);
+            }
+          });
+        }, 120);
+      };
+      window.addEventListener('resize', onResize);
+      // Also catch programmatic container resizes (e.g. dev tools dock/undock,
+      // mobile address-bar visibility changes, flex reflow at breakpoints).
+      if (window.ResizeObserver) {
+        const wrap = document.querySelector('.heatmap-wrap');
+        if (wrap) new ResizeObserver(onResize).observe(wrap);
+      }
+    }
+
+    // ── Sliders ────────────────────────────────────────────────
+    function setSliderFill(el, val, min, max) {
+      const pct = ((val - min) / (max - min) * 100).toFixed(1);
+      el.style.setProperty('--fill', pct + '%');
+    }
+
+    function initSliders() {
+      const sliderDm32 = document.getElementById('slider-dm32');
+      const sliderPrec = document.getElementById('slider-prec');
+      const dm32Readout = sliderDm32.closest('.slider-group').querySelector('.slider-current-val');
+      const precReadout = sliderPrec.closest('.slider-group').querySelector('.slider-current-val');
+
+      sliderDm32.addEventListener('input', () => {
+        currentDm32 = Number(sliderDm32.value);
+        setSliderFill(sliderDm32, currentDm32, dm32Min, dm32Max);
+        dm32Readout.textContent = currentDm32.toFixed(3);
+        updateMetricCards(getNearestGridPoint(currentDm32, currentPrecision));
+        updateHeatmapCrosshair(currentDm32, currentPrecision);
+      });
+
+      sliderPrec.addEventListener('input', () => {
+        currentPrecision = Number(sliderPrec.value);
+        setSliderFill(sliderPrec, currentPrecision, precMin, precMax);
+        precReadout.textContent = currentPrecision.toFixed(2);
+        updateMetricCards(getNearestGridPoint(currentDm32, currentPrecision));
+        updateHeatmapCrosshair(currentDm32, currentPrecision);
+      });
+
+      // λ slider — display only, no physics effect
+      const LAMBDA_VALUES = Array.from({length: 11}, (_, i) => 0.115 + i * 0.001);
+      const sliderLambda = document.getElementById('slider-lambda');
+      const lambdaValDisplay = document.getElementById('lambda-val');
+      sliderLambda.addEventListener('input', () => {
+        const idx = parseInt(sliderLambda.value);
+        lambdaValDisplay.textContent = LAMBDA_VALUES[idx].toFixed(3);
+        sliderLambda.style.setProperty('--fill', `${(idx / 10) * 100}%`);
+      });
+    }
+
+    // ── Generate button ────────────────────────────────────────
+    function wireGenerateButton() {
+      document.getElementById('generate-btn').addEventListener('click', () => {
+        if (!dataReady) return;
+        const nearest = getNearestGridPoint(currentDm32, currentPrecision);
+        if (!nearest) return;
+
+        const path = 'triangles/v8/triangle_i' + padTwo(nearest.i) +
+                     '_j' + padTwo(nearest.j) + '.jpg';
+        const container = document.getElementById('triangle-container');
+        const subtitle  = document.querySelector('.col-center .card-subtitle');
+
+        // Each click gets its own Image with a unique request id. Late-resolving
+        // loads (or errors) from prior clicks are discarded.
+        const myRequestId = ++imageRequestId;
+        const img = new Image();
+        img.alt = '';
+        const prefersReducedMotion = window.matchMedia &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        img.style.cssText = prefersReducedMotion
+          ? 'display:none; opacity:1;'
+          : 'display:none; opacity:0; transition:opacity 0.3s ease;';
+
+        img.onload = () => {
+          if (myRequestId !== imageRequestId) return; // stale
+          // Swap previous image out (only after new one is decoded — no flash)
+          if (triangleImg && triangleImg !== img && triangleImg.parentNode) {
+            triangleImg.parentNode.removeChild(triangleImg);
+          }
+          triangleImg = img;
+          if (!img.parentNode) container.appendChild(img);
+          // Hide placeholder children (icon + caption)
+          Array.from(container.children).forEach(c => {
+            if (c !== img) c.style.display = 'none';
+          });
+          img.style.display = 'block';
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => { img.style.opacity = '1'; });
+          });
+
+          subtitle.textContent =
+            'Nearest grid point: Δm²₃₂ = ' + nearest.dm32_no.toFixed(3) +
+            ' × 10⁻³ eV², precision = ' + nearest.precision.toFixed(2) + '%';
+          updateMetricCards(nearest);
+        };
+
+        img.onerror = () => {
+          if (myRequestId !== imageRequestId) return; // stale
+          if (triangleImg && triangleImg.parentNode) {
+            triangleImg.parentNode.removeChild(triangleImg);
+            triangleImg = null;
+          }
+          Array.from(container.children).forEach(c => { c.style.display = ''; });
+          subtitle.textContent = 'Triangle plot not found for this grid point.';
+        };
+
+        // Set handlers BEFORE src so a cache-hit synchronous load is captured.
+        img.src = path;
+      });
+    }
+
+    // ── Data loading ───────────────────────────────────────────
+    function showError(msg) {
+      let banner = document.getElementById('v2-error-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'v2-error-banner';
+        banner.style.cssText = [
+          'background:#FEF2F2', 'border:1px solid #FECACA', 'color:#991B1B',
+          'font-size:13px', 'padding:10px 20px', 'text-align:center',
+          'position:fixed', 'top:calc(var(--header-h) + 4px)', 'left:0', 'right:0', 'z-index:200'
+        ].join(';');
+        document.body.insertBefore(banner, document.getElementById('main'));
+      }
+      banner.textContent = msg;
+    }
+
+    async function loadData() {
+      try {
+        const [csvText, jsonText] = await Promise.all([
+          fetch('data/bf_grid.csv').then(r => { if (!r.ok) throw new Error('bf_grid.csv ' + r.status); return r.text(); }),
+          fetch('data/manifest.json').then(r => { if (!r.ok) throw new Error('manifest.json ' + r.status); return r.text(); })
+        ]);
+
+        // Parse CSV
+        const lines = csvText.split('\n').map(l => l.trim()).filter(Boolean);
+        const headers = lines[0].split(',');
+        bfData = lines.slice(1).map(line => {
+          const vals = line.split(',');
+          const obj = {};
+          headers.forEach((h, k) => { obj[h] = Number(vals[k]); });
+          return obj;
+        });
+
+        // Build sparse 2D lookup bfGrid2D[i][j]
+        bfGrid2D = [];
+        for (const row of bfData) {
+          const i = row.i, j = row.j;
+          if (!bfGrid2D[i]) bfGrid2D[i] = {};
+          bfGrid2D[i][j] = row;
+        }
+
+        // Parse manifest (sanitise non-finite JSON tokens)
+        const safeJson = jsonText.replace(/-?Infinity|NaN/g, 'null');
+        gridManifest = JSON.parse(safeJson);
+
+        // Derive unique sorted axes
+        dm32Unique = [...new Set(gridManifest.map(e => e.dm32_no))].sort((a, b) => a - b);
+        precUnique = [...new Set(gridManifest.map(e => e.precision))].sort((a, b) => a - b);
+        dm32Min = dm32Unique[0];
+        dm32Max = dm32Unique[dm32Unique.length - 1];
+        precMin = precUnique[0];
+        precMax = precUnique[precUnique.length - 1];
+
+        // Initial slider positions — grid midpoints
+        const midDm32 = dm32Unique[Math.floor(dm32Unique.length / 2)];
+        const midPrec  = precUnique[Math.floor(precUnique.length / 2)];
+        currentDm32 = midDm32;
+        currentPrecision = midPrec;
+
+        // Configure slider elements
+        const sliderDm32 = document.getElementById('slider-dm32');
+        const sliderPrec = document.getElementById('slider-prec');
+
+        sliderDm32.min   = dm32Min;
+        sliderDm32.max   = dm32Max;
+        sliderDm32.step  = 0.001;
+        sliderDm32.value = midDm32;
+
+        sliderPrec.min   = precMin;
+        sliderPrec.max   = precMax;
+        sliderPrec.step  = 0.001;
+        sliderPrec.value = midPrec;
+
+        // Range labels
+        const dm32Labels = sliderDm32.closest('.slider-group').querySelectorAll('.slider-range-labels span');
+        dm32Labels[0].textContent = dm32Min.toFixed(3);
+        dm32Labels[1].textContent = dm32Max.toFixed(3);
+
+        const precLabels = sliderPrec.closest('.slider-group').querySelectorAll('.slider-range-labels span');
+        precLabels[0].textContent = precMin.toFixed(2);
+        precLabels[1].textContent = precMax.toFixed(2);
+
+        // Live readouts
+        sliderDm32.closest('.slider-group').querySelector('.slider-current-val').textContent = midDm32.toFixed(3);
+        sliderPrec.closest('.slider-group').querySelector('.slider-current-val').textContent = midPrec.toFixed(2);
+
+        // Slider fill
+        setSliderFill(sliderDm32, midDm32, dm32Min, dm32Max);
+        setSliderFill(sliderPrec, midPrec, precMin, precMax);
+
+        // Boot subsystems
+        initHeatmap();
+        initSliders();
+        wireGenerateButton();
+        wireHandleDrag();
+        setupResizeHandler();
+
+        // Show metric cards immediately with nearest-midpoint data
+        updateMetricCards(getNearestGridPoint(midDm32, midPrec));
+
+        dataReady = true;
+        setControlsEnabled(true);
+
+      } catch (err) {
+        showError('Failed to load data: ' + err.message +
+                  '. Run the pipeline and serve from the repo root.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadData);
+  })();
+
+  // ══════════════════════════════════════════ GUIDED TOUR ══
+  (function () {
+    'use strict';
+
+    var STEPS = [
+      {
+        target: '.controls-card',
+        title: 'Measurement Scenario',
+        text: 'The top slider sets the Δm²₃₂ central value of the external constraint ' +
+              '(the hypothetical JUNO measurement, in 10⁻³ eV²). The precision slider ' +
+              'controls how tightly |Δm²₃₂| is constrained (in %). As you move the ' +
+              'sliders, the crosshair on the heatmap updates in real time. ' +
+              'The λ offset slider below encodes the theoretical Δm²₃₂ shift between mass-ordering assumptions; ' +
+              'it is currently held fixed at its measured value (0.120 × 10⁻³ eV²) and is not yet active.'
+      },
+      {
+        target: '.heatmap-card',
+        title: 'NOvA Sensitivity Heatmap',
+        text: 'Colour shows log₁₀(Bayes factor): blue means NOvA favours normal mass ' +
+              'ordering (NO), red favours inverted ordering (IO), white is ambiguous. ' +
+              'Contour lines mark ±1σ, ±2σ, and ±3σ equivalent significance. ' +
+              'Drag the crosshair or use the sliders to explore.'
+      },
+      {
+        target: '.plot-card',
+        title: 'NOvA Posterior Summary',
+        text: 'Click "Generate Posterior Summary" to load the corner plot showing NOvA’s ' +
+              'marginalised posteriors for four oscillation parameters at the selected ' +
+              'constraint. Blue = normal ordering, red = inverted ordering. ' +
+              'The plot only updates on button press.'
+      },
+      {
+        target: '#bottom-nav',
+        title: 'Further Reading',
+        text: 'Links to the NOvA+JUNO arXiv paper, the NOvA experiment website, and ' +
+              'the public data release accompanying this result.'
+      }
+    ];
+
+    var currentStep = 0;
+    var overlay = null, tooltip = null;
+    var highlightedEl = null, elevatedParent = null;
+    var previouslyFocused = null;
+
+    function trapFocusHandler(e) {
+      if (!tooltip) return;
+      if (e.key === 'Escape') { closeTour(); return; }
+      if (e.key !== 'Tab') return;
+      var focusables = tooltip.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])');
+      if (!focusables.length) return;
+      var first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        last.focus(); e.preventDefault();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        first.focus(); e.preventDefault();
+      }
+    }
+
+    function dismissNudge() {
+      var nudge = document.getElementById('tour-nudge');
+      if (nudge) nudge.style.display = 'none';
+    }
+
+    function startTour() {
+      if (overlay) closeTour();
+      dismissNudge();
+      previouslyFocused = document.activeElement;
+      currentStep = 0;
+      buildTourDOM();
+      document.addEventListener('keydown', trapFocusHandler);
+      showStep(0);
+    }
+
+    function buildTourDOM() {
+      overlay = document.createElement('div');
+      overlay.id = 'tour-overlay';
+      overlay.addEventListener('click', closeTour);
+      document.body.appendChild(overlay);
+
+      tooltip = document.createElement('div');
+      tooltip.id = 'tour-tooltip';
+      tooltip.setAttribute('role', 'dialog');
+      tooltip.setAttribute('aria-modal', 'true');
+      tooltip.setAttribute('aria-labelledby', 'tour-dialog-title');
+      tooltip.addEventListener('click', function (e) { e.stopPropagation(); });
+      document.body.appendChild(tooltip);
+    }
+
+    function showStep(i) {
+      if (highlightedEl) {
+        highlightedEl.classList.remove('tour-highlight');
+        highlightedEl = null;
+      }
+      if (elevatedParent) {
+        elevatedParent.style.position = '';
+        elevatedParent.style.zIndex = '';
+        elevatedParent = null;
+      }
+
+      var step = STEPS[i];
+      var el = document.querySelector(step.target);
+      if (!el) return;
+
+      highlightedEl = el;
+      el.classList.add('tour-highlight');
+
+      var colParent = el.closest('.col');
+      if (colParent) {
+        colParent.style.position = 'relative';
+        colParent.style.zIndex = '9001';
+        elevatedParent = colParent;
+      }
+
+      tooltip.innerHTML =
+        '<div class="tour-step-label">Step ' + (i + 1) + ' of ' + STEPS.length + '</div>' +
+        '<h3 class="tour-title" id="tour-dialog-title">' + step.title + '</h3>' +
+        '<p class="tour-text">' + step.text + '</p>' +
+        '<div class="tour-actions">' +
+          (i > 0 ? '<button class="tour-btn tour-btn-secondary" id="tour-prev">← Prev</button>' : '') +
+          '<div class="spacer"></div>' +
+          '<button class="tour-btn tour-btn-secondary" id="tour-close">Close</button>' +
+          '<button class="tour-btn tour-btn-primary" id="tour-next">' +
+            (i < STEPS.length - 1 ? 'Next →' : 'Done') +
+          '</button>' +
+        '</div>';
+
+      document.getElementById('tour-close').addEventListener('click', closeTour);
+      document.getElementById('tour-next').addEventListener('click', function () {
+        if (currentStep < STEPS.length - 1) { currentStep++; showStep(currentStep); }
+        else closeTour();
+      });
+      var prevBtn = document.getElementById('tour-prev');
+      if (prevBtn) {
+        prevBtn.addEventListener('click', function () { currentStep--; showStep(currentStep); });
+      }
+
+      positionTooltip(el, step.target);
+
+      // Move focus into the tooltip for keyboard / screen-reader users.
+      var nextBtn = document.getElementById('tour-next');
+      if (nextBtn) nextBtn.focus();
+    }
+
+    function positionTooltip(el, targetSelector) {
+      var rect = el.getBoundingClientRect();
+      var TW = 320, PAD = 16;
+      var left, top;
+
+      if (targetSelector === '#bottom-nav') {
+        left = window.innerWidth / 2 - TW / 2;
+        top  = rect.top - PAD;  // refined below after measuring height
+      } else if (rect.right + PAD + TW <= window.innerWidth) {
+        left = rect.right + PAD;
+        top  = rect.top;
+      } else {
+        left = rect.left - TW - PAD;
+        top  = rect.top;
+      }
+
+      top  = Math.max(PAD, Math.min(top, window.innerHeight - 220 - PAD));
+      left = Math.max(PAD, left);
+
+      tooltip.style.left = left + 'px';
+      tooltip.style.top  = top  + 'px';
+
+      if (targetSelector === '#bottom-nav') {
+        requestAnimationFrame(function () {
+          var th = tooltip.offsetHeight;
+          tooltip.style.top = Math.max(PAD, rect.top - th - PAD) + 'px';
+        });
+      }
+    }
+
+    function closeTour() {
+      if (highlightedEl) {
+        highlightedEl.classList.remove('tour-highlight');
+        highlightedEl = null;
+      }
+      if (elevatedParent) {
+        elevatedParent.style.position = '';
+        elevatedParent.style.zIndex = '';
+        elevatedParent = null;
+      }
+      if (overlay) { overlay.remove(); overlay = null; }
+      if (tooltip) { tooltip.remove(); tooltip = null; }
+      document.removeEventListener('keydown', trapFocusHandler);
+      if (previouslyFocused && previouslyFocused.focus) {
+        try { previouslyFocused.focus(); } catch (_) {}
+      }
+      previouslyFocused = null;
+      dismissNudge();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var helpBtn = document.getElementById('help-btn');
+      if (helpBtn) helpBtn.addEventListener('click', startTour);
+
+      var dismissBtn = document.getElementById('dismiss-nudge');
+      if (dismissBtn) dismissBtn.addEventListener('click', dismissNudge);
+    });
+
+  })();
+  </script>
+
+</body>
+</html>
