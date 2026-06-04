@@ -30,3 +30,4 @@ __pycache__/
 .vscode/
 .cursor/
 .claude/
+CLAUDE.md
