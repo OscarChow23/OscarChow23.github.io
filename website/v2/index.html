@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Neutrino Mass Ordering Determination</title>
+  <title>Neutrino Mass Ordering Sensitivity</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -30,7 +30,7 @@
     <div class="header-left">
       <img src="./assets/NOvALogoPrideChevron.png" alt="NOvA logo" />
       <div class="header-brand">
-        <span class="brand-name">Neutrino Mass Ordering Determination</span>
+        <span class="brand-name">Neutrino Mass Ordering Sensitivity</span>
         <span class="brand-sub">Interactively explore NOvA's ordering preference as a function of an external Δm² constraint</span>
       </div>
     </div>
@@ -569,7 +569,8 @@
                                        Math.min(precUnique[ny - 1] - annotPadY, v));
 
       const contourTraces = [];
-      const annotations = [];
+      const pendingLabels = []; // label positions + tangent data; angles added post-render
+      const GAP_HALF = 1;       // grid steps to omit on each side of label midpoint
 
       contourPolygons.forEach(c => {
         const sigmaInfo = SIGMA_CONTOUR_THRESHOLDS.find(t => Math.abs(t.log10_bf - c.value) < 1e-4);
@@ -577,23 +578,26 @@
         const sigma = sigmaInfo.sigma;
 
         // Skip boundary-tracing segments D3 adds to close polygon rings along grid edges.
-        const EPS = 0.5;
+        const EPS = 0.05;
         const isBoundarySeg = ([x1, y1], [x2, y2]) =>
           (x1 <= EPS && x2 <= EPS) || (x1 >= nx - EPS && x2 >= nx - EPS) ||
           (y1 <= EPS && y2 <= EPS) || (y1 >= ny - EPS && y2 >= ny - EPS);
 
-        const xPts = [], yPts = [];
-        let longestChain = null, longestChainLen = 0;
+        // Pass 1: collect all visible chains and identify the longest one.
+        const allChains = [];
+        let longestIdx = -1, longestChainLen = 0;
 
         c.coordinates.forEach(polygon => {
           polygon.forEach(ring => {
-            const n = ring.length - 1; // GeoJSON: last pt == first pt
+            const n = ring.length - 1;
             let chain = [];
             const flushChain = () => {
               if (!chain.length) return;
-              if (xPts.length && xPts[xPts.length - 1] !== null) { xPts.push(null); yPts.push(null); }
-              chain.forEach(([xi, yi]) => { xPts.push(gridToDm32(xi)); yPts.push(gridToPrec(yi)); });
-              if (chain.length > longestChainLen) { longestChainLen = chain.length; longestChain = [...chain]; }
+              allChains.push([...chain]);
+              if (chain.length > longestChainLen) {
+                longestChainLen = chain.length;
+                longestIdx = allChains.length - 1;
+              }
               chain = [];
             };
             for (let k = 0; k < n; k++) {
@@ -603,6 +607,24 @@
             }
             flushChain();
           });
+        });
+
+        // Pass 2: build xPts/yPts, inserting a gap in the longest chain for the label.
+        const xPts = [], yPts = [];
+        const addSegment = seg => {
+          if (seg.length < 2) return;
+          if (xPts.length && xPts[xPts.length - 1] !== null) { xPts.push(null); yPts.push(null); }
+          seg.forEach(([xi, yi]) => { xPts.push(gridToDm32(xi)); yPts.push(gridToPrec(yi)); });
+        };
+
+        allChains.forEach((chain, idx) => {
+          if (idx === longestIdx && chain.length >= GAP_HALF * 2 + 3) {
+            const mid = Math.floor(chain.length / 2);
+            addSegment(chain.slice(0, mid - GAP_HALF));
+            addSegment(chain.slice(mid + GAP_HALF + 1));
+          } else {
+            addSegment(chain);
+          }
         });
 
         contourTraces.push({
@@ -616,19 +638,25 @@
           showlegend: false, hoverinfo: 'none'
         });
 
-        // Label at midpoint of the longest visible (non-boundary) chain.
-        if (longestChain) {
-          const [lxi, lyi] = longestChain[Math.floor(longestChain.length / 2)];
+        // Store label position and local tangent for post-render angle computation.
+        if (longestIdx >= 0) {
+          const longestChain = allChains[longestIdx];
+          const mid = Math.floor(longestChain.length / 2);
+          const [lxi, lyi] = longestChain[mid];
+          const kk = Math.min(5, Math.max(1, Math.floor(longestChain.length / 4)));
+          const p1 = longestChain[Math.max(0, mid - kk)];
+          const p2 = longestChain[Math.min(longestChain.length - 1, mid + kk)];
+          const dx_data = gridToDm32(p2[0]) - gridToDm32(p1[0]);
+          const dy_data = gridToPrec(p2[1]) - gridToPrec(p1[1]);
           const labelText = sigma > 0 ? `NO ${sigma}σ`
                           : sigma < 0 ? `IO ${Math.abs(sigma)}σ`
                           : 'NO | IO';
-          annotations.push({
+          pendingLabels.push({
             x: clampDm32(gridToDm32(lxi)),
             y: clampPrec(gridToPrec(lyi)),
             text: labelText,
-            showarrow: false,
-            font: { size: 13, color: '#333', family: 'Inter, sans-serif' },
-            bgcolor: 'rgba(255,255,255,0.78)', borderpad: 2
+            dx_data,
+            dy_data
           });
         }
       });
@@ -654,36 +682,83 @@
         zmax: 5,
         colorbar: {
           title: { text: 'log₁₀(BF)', side: 'right' },
-          tickfont:  { size: 15, family: 'Inter, sans-serif', color: '#5A6A7E' },
-          titlefont: { size: 17, family: 'Inter, sans-serif', color: '#5A6A7E' }
+          tickfont:  { size: 13, family: 'Inter, sans-serif', color: '#5A6A7E' },
+          titlefont: { size: 14, family: 'Inter, sans-serif', color: '#5A6A7E' },
+          thickness: 14, outlinewidth: 0, xpad: 6
         }
       }, ...contourTraces, dummyTrace], {
         xaxis: {
-          title: { text: 'Δm²₃₂ (NO) [×10⁻³ eV²]', font: { size: 18 } },
-          tickfont: { size: 16 }, color: '#5A6A7E',
-          showgrid: false, zeroline: false
+          title: { text: 'Δm²₃₂ (NO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
+          tickfont: { size: 13 }, color: '#5A6A7E',
+          showgrid: false, zeroline: false,
+          ticks: 'outside', ticklen: 5,
+          linecolor: '#5A6A7E', linewidth: 1,
+          range: [dm32Unique[0], dm32Unique[nx - 1]],
+          autorange: false
         },
         xaxis2: {
           overlaying: 'x', side: 'top',
           range: [dm32Unique[0] + LAMBDA_IO_OFFSET, dm32Unique[nx - 1] + LAMBDA_IO_OFFSET],
-          title: { text: 'Δm²₃₂ (IO) [×10⁻³ eV²]', font: { size: 18 } },
+          title: { text: 'Δm²₃₂ (IO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
           tickformat: '.2f',
-          tickfont: { size: 16 }, color: '#5A6A7E',
-          showgrid: false, zeroline: false
+          tickfont: { size: 13 }, color: '#5A6A7E',
+          showgrid: false, zeroline: false,
+          ticks: 'outside', ticklen: 5,
+          linecolor: '#5A6A7E', linewidth: 1
         },
         yaxis: {
-          title: { text: 'Measurement Precision on |Δm²₃₂| [%]', font: { size: 18 } },
-          tickfont: { size: 16 }, color: '#5A6A7E',
-          showgrid: false, zeroline: false
+          title: { text: 'Measurement Precision on |Δm²₃₂| [%]', font: { size: 15 }, standoff: 6 },
+          tickfont: { size: 13 }, color: '#5A6A7E',
+          showgrid: false, zeroline: false,
+          ticks: 'outside', ticklen: 5,
+          linecolor: '#5A6A7E', linewidth: 1, mirror: true,
+          range: [precUnique[0], precUnique[ny - 1]],
+          autorange: false
         },
         autosize: true,
-        margin: { l: 85, r: 90, t: 70, b: 80 },
+        margin: { l: 65, r: 75, t: 58, b: 62 },
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor:  'rgba(0,0,0,0)',
         font: { family: 'Inter, sans-serif', color: '#5A6A7E' },
-        annotations: annotations,
+        annotations: [],
         shapes: []
       }, { displayModeBar: false, staticPlot: true })
+      .then(() => {
+        // Compute per-label textangle using actual pixel extents of the rendered axes.
+        const gd = document.getElementById('heatmap-plot');
+        const xPixLen = (gd._fullLayout && gd._fullLayout.xaxis._length) || 400;
+        const yPixLen = (gd._fullLayout && gd._fullLayout.yaxis._length) || 300;
+        const xPxPerUnit = xPixLen / dm32Span;
+        const yPxPerUnit = yPixLen / precSpan;
+
+        const finalAnnotations = pendingLabels.map(lb => {
+          // Screen y increases downward, so negate dy_data to get screen direction.
+          const angleDeg = Math.atan2(
+            -lb.dy_data * yPxPerUnit,
+             lb.dx_data * xPxPerUnit
+          ) * 180 / Math.PI;
+          return {
+            x: lb.x, y: lb.y,
+            text: lb.text,
+            showarrow: false,
+            textangle: angleDeg,
+            font: { size: 12, color: 'rgba(55,55,55,0.9)', family: 'Inter, sans-serif' },
+          };
+        });
+
+        // Align colorbar exactly with plot area using the y-axis domain (paper coords).
+        const ydom = gd._fullLayout.yaxis.domain;  // [bottom, top] in paper coords
+        const yMid = (ydom[0] + ydom[1]) / 2;
+        const yLen = ydom[1] - ydom[0];
+
+        return Plotly.relayout(gd, { annotations: finalAnnotations })
+          .then(() => Plotly.restyle(gd, {
+            'colorbar.lenmode': 'paper',
+            'colorbar.len': yLen,
+            'colorbar.yanchor': 'middle',
+            'colorbar.y': yMid
+          }, [0]));
+      })
       .then(() => updateHeatmapCrosshair(currentDm32, currentPrecision));
     }
 
@@ -790,14 +865,9 @@
             requestAnimationFrame(() => { img.style.opacity = '1'; });
           });
 
-          let sub = 'dm32 = ' + nearest.dm32_no.toFixed(3) +
-                    ' × 10⁻³ eV²  ·  prec = ' +
-                    nearest.precision.toFixed(2) + '%';
-          if (Math.abs(currentDm32 - nearest.dm32_no) > 1e-4 ||
-              Math.abs(currentPrecision - nearest.precision) > 1e-4) {
-            sub += '  ·  nearest grid point';
-          }
-          subtitle.textContent = sub;
+          subtitle.textContent =
+            'Nearest grid point: Δm²₃₂ = ' + nearest.dm32_no.toFixed(3) +
+            ' × 10⁻³ eV², precision = ' + nearest.precision.toFixed(2) + '%';
           updateMetricCards(nearest);
         };
 

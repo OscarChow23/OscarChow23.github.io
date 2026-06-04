@@ -414,7 +414,7 @@ input[type="range"]:disabled {
 
 /* ─── Triangle plot area ──────────────────────────────────── */
 .plot-card {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   padding-bottom: 24px;
@@ -422,7 +422,9 @@ input[type="range"]:disabled {
 }
 
 .plot-placeholder {
-  flex: 1;
+  flex: 0 0 auto;
+  aspect-ratio: 1 / 1;
+  width: 100%;
   min-height: 0;
   overflow: hidden;
   position: relative;
