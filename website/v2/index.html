@@ -211,7 +211,7 @@
 
   <!-- ══════════════════════════════════════════ BOTTOM NAV ══ -->
   <nav id="bottom-nav">
-    <a class="tab" href="https://arxiv.org/" target="_blank" rel="noopener noreferrer" id="arxiv-link" title="arXiv paper (link to be updated on release)"><i class="ti ti-file-text"></i> arXiv</a>
+    <a class="tab" href="https://arxiv.org/abs/2606.14121" target="_blank" rel="noopener noreferrer" id="arxiv-link" title="arXiv paper"><i class="ti ti-file-text"></i> arXiv</a>
     <a class="tab" href="https://novaexperiment.fnal.gov" target="_blank" rel="noopener noreferrer"><i class="ti ti-atom"></i> NOvA</a>
     <a class="tab" href="https://novaexperiment.fnal.gov/data-releases/" target="_blank" rel="noopener noreferrer"><i class="ti ti-database"></i> Data Releases</a>
   </nav>
@@ -1094,8 +1094,8 @@
       {
         target: '.heatmap-card',
         title: 'NOvA Sensitivity Heatmap',
-        text: 'Colour shows log₁₀(Bayes factor): blue means NOvA favours normal mass ' +
-              'ordering (NO), red favours inverted ordering (IO), white is ambiguous. ' +
+        text: 'Colour shows log₁₀(Bayes factor): red means NOvA favours normal mass ' +
+              'ordering (NO), blue favours inverted ordering (IO), white is no ordering preference. ' +
               'Contour lines mark ±1σ, ±2σ, and ±3σ equivalent significance. ' +
               'Drag the crosshair or use the sliders to explore.'
       },
@@ -1104,14 +1104,14 @@
         title: 'NOvA Posterior Summary',
         text: 'Click "Generate Posterior Summary" to load the corner plot showing NOvA’s ' +
               'marginalised posteriors for four oscillation parameters at the selected ' +
-              'constraint. Blue = normal ordering, red = inverted ordering. ' +
-              'The plot only updates on button press.'
+              'constraint. Blue = normal ordering, red = inverted ordering in these posterior plots.' +
+              'The plot updates on button press or when crosshair is moved.'
       },
       {
         target: '#bottom-nav',
         title: 'Further Reading',
         text: 'Links to the NOvA+JUNO arXiv paper, the NOvA experiment website, and ' +
-              'the public data release accompanying this result.'
+              'NOvA\'s public data releases.'
       }
     ];
 
