@@ -1,28 +1,13 @@
 """
-M2 (3D): Render triangle JPEGs for every grid point in the new dense npz.
+M2: Render triangle JPEGs for every grid point in the npz.
 
-Input:
-  Artur_code/joint_both_nueLowE_noreactor_solar_systs_realdata/
-      merged_ninja_grid_output_forweb.npz
-  Axis arrays come from the companion CSV (avoids loading the 13 GB npz key list).
+Input:  Artur_code/bayes_factors_and_rmse_prel.npz
+Output: triangles/triangle_i{i:02d}_j{j:02d}.jpg
 
-Output:
-  triangles/v9/triangle_i{i:02d}_j{j:02d}_l{l:02d}.jpg
-
-CLI flags:
-  --lambda-index N   render only the slice l == N (0..n_l-1)
-  --only I,J         render only (i, j) at every λ (or together with --lambda-index)
-  --out-dir PATH     override default triangles/v9/
-  --npz PATH         override default npz path
-  --csv PATH         override default companion csv path
-
-Skips existing JPEGs to allow interrupted reruns.
+Matches the physics and rendering of draw_triangle() in Artur_code/plotting.py.
 """
 
-import argparse
-import csv
 import os
-import time
 
 import numpy as np
 import matplotlib
@@ -31,8 +16,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 from matplotlib.legend_handler import HandlerTuple
-from matplotlib.ticker import MaxNLocator
+from scipy.stats import norm
 from tqdm import tqdm
+from matplotlib.ticker import MaxNLocator
 
 
 plt.rcParams["font.family"] = "sans-serif"
@@ -48,6 +34,7 @@ plt.rcParams["ytick.minor.width"] = 1
 
 COLOR_LINE_NO = "#006DFF"
 COLOR_LINE_IO = "#CC2020"
+# index 0 -> 90% (outer, lighter), index 1 -> 68% (inner, darker)
 COLOR_FILL_NO = ["#1CA4F7", "#65cbfe"][::-1]
 COLOR_FILL_IO = ["#ED4040", "#fe7f7e"][::-1]
 
@@ -62,16 +49,10 @@ PARAMETERS_LATEX = {
 AXIS_LABEL_FONT_SIZE = 13
 TICK_LABEL_FONT_SIZE = 11
 
-DEFAULT_NPZ = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), "..", "Artur_code",
-    "joint_both_nueLowE_noreactor_solar_systs_realdata",
-    "merged_ninja_grid_output_forweb.npz"))
-DEFAULT_CSV = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), "..", "Artur_code",
-    "joint_both_nueLowE_noreactor_solar_systs_realdata",
-    "merged_ninja_grid_output_forweb.csv"))
-DEFAULT_OUT = os.path.normpath(os.path.join(
-    os.path.dirname(__file__), "..", "triangles", "v9"))
+NPZ_PATH = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), "..", "Artur_code", "bayes_factors_and_rmse_prel.npz"))
+TRIANGLES_DIR = os.path.normpath(os.path.join(
+    os.path.dirname(__file__), "..", "triangles", "v8"))
 
 
 def get_quantile_threshold(hist, quantile=0.6827):
@@ -84,7 +65,17 @@ def get_quantile_threshold(hist, quantile=0.6827):
     return sorted_hist[idx]
 
 
+def bf_to_sigma(bf, two_sided=True):
+    bf = np.asarray(bf, dtype=float)
+    p_h1 = bf / (1.0 + bf)
+    p = 1.0 - p_h1
+    if two_sided:
+        return norm.isf(p / 2.0)
+    return norm.isf(p)
+
+
 def _contour_levels(thr):
+    """Return strictly increasing contour levels (matplotlib requirement)."""
     thr = np.sort(np.atleast_1d(np.asarray(thr, dtype=float)))
     out = []
     for v in thr:
@@ -113,17 +104,10 @@ def _add_legend(ax):
     )
 
 
-def _grid_key_prefix(io_offset, precision, dm32):
-    # The npz keys were written using Python's repr() of the raw float values
-    # from the source CSV. repr(float(x)) round-trips bit-exactly even for
-    # round-9 artefacts like 2.2549999999999. Do NOT format these as fixed dp.
-    return (f"noio{repr(float(io_offset))}"
-            f"_precision{repr(float(precision))}"
-            f"_dm32no{repr(float(dm32))}_plot_")
-
-
-def draw_triangle(npz, prefix, out_path, fmt="jpeg", dpi=80):
+def draw_triangle(data, i_idx, j_idx, out_path, fmt="jpeg", dpi=80):
+    postfix = f"i{i_idx}_j{j_idx}"
     n = len(PARAMETERS)
+
     fig = plt.figure(figsize=(8, 8))
     gs = fig.add_gridspec(n, n, wspace=0.0, hspace=0.0)
     axes = gs.subplots(sharex="col")
@@ -137,9 +121,9 @@ def draw_triangle(npz, prefix, out_path, fmt="jpeg", dpi=80):
                 continue
 
             if i == j:
-                histno = npz[f"{prefix}{pari}_hist_no"]
-                histio = npz[f"{prefix}{pari}_hist_io"]
-                edges  = npz[f"{prefix}{pari}_edges"][0]
+                histno = data[f"plot_{pari}_hist_no_{postfix}"]
+                histio = data[f"plot_{pari}_hist_io_{postfix}"]
+                edges = data[f"plot_{pari}_edges_{postfix}"][0]
 
                 hist_joint = np.concatenate([histno, histio])
                 thr = get_quantile_threshold(hist_joint, quantile=[0.90, 0.68])
@@ -165,9 +149,9 @@ def draw_triangle(npz, prefix, out_path, fmt="jpeg", dpi=80):
                 ax.set_ylim(0, max(histno.max(), histio.max()) * 1.2)
 
             else:
-                histno = npz[f"{prefix}{pari}_{parj}_hist_no"]
-                histio = npz[f"{prefix}{pari}_{parj}_hist_io"]
-                edges  = npz[f"{prefix}{pari}_{parj}_edges"]
+                histno = data[f"plot_{pari}_{parj}_hist_no_{postfix}"]
+                histio = data[f"plot_{pari}_{parj}_hist_io_{postfix}"]
+                edges = data[f"plot_{pari}_{parj}_edges_{postfix}"]
                 xedges = edges[1]
                 yedges = edges[0]
 
@@ -196,6 +180,7 @@ def draw_triangle(npz, prefix, out_path, fmt="jpeg", dpi=80):
             ax.yaxis.set_major_locator(MaxNLocator(nbins=3, prune="both"))
             ax.tick_params(axis="both", which="major", labelsize=TICK_LABEL_FONT_SIZE)
 
+    # NO/IO legend in the empty upper-right region
     _add_legend(axes[1, n - 1])
 
     for ax in axes.flatten():
@@ -212,85 +197,33 @@ def draw_triangle(npz, prefix, out_path, fmt="jpeg", dpi=80):
     plt.close(fig)
 
 
-def _load_axes(csv_path):
-    """Return (lambda_list, dm32_list, prec_list) as sorted unique floats from the CSV."""
-    lam, dm, pr = set(), set(), set()
-    with open(csv_path, newline="") as f:
-        rdr = csv.DictReader(f)
-        for row in rdr:
-            lam.add(float(row["io_no_offset"]))
-            dm.add(float(row["juno_no"]))
-            pr.add(float(row["pct_precision"]))
-    return sorted(lam), sorted(dm), sorted(pr)
-
-
-def parse_args():
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--lambda-index", type=int, default=None,
-                   help="Render only the slice l == N (0-indexed).")
-    p.add_argument("--only", type=str, default=None,
-                   help="Render only point i,j (e.g. '0,0'). Combined with "
-                        "--lambda-index renders a single (i,j,l) triangle.")
-    p.add_argument("--out-dir", type=str, default=DEFAULT_OUT)
-    p.add_argument("--npz", type=str, default=DEFAULT_NPZ)
-    p.add_argument("--csv", type=str, default=DEFAULT_CSV)
-    return p.parse_args()
-
-
 def main():
-    args = parse_args()
+    print(f"Loading {NPZ_PATH} ...")
+    _npz = np.load(NPZ_PATH)
+    print("Pre-loading arrays into memory ...")
+    data = {k: _npz[k] for k in _npz.files}
 
-    print(f"Axes from {args.csv} ...")
-    lambdas, dm32s, precs = _load_axes(args.csv)
-    n_l, n_i, n_j = len(lambdas), len(dm32s), len(precs)
-    print(f"  grid {n_l} × {n_i} × {n_j}")
+    bfs = data["bfs"]
+    rmses = data["rmses"]
+    dm32_values = data["dm32_values"] * 1e3
+    precision_values = data["precision_values"]
 
-    only_ij = None
-    if args.only is not None:
-        parts = args.only.split(",")
-        only_ij = (int(parts[0]), int(parts[1]))
+    n_dm32, n_prec = bfs.shape
+    os.makedirs(TRIANGLES_DIR, exist_ok=True)
 
-    if args.lambda_index is not None:
-        if not (0 <= args.lambda_index < n_l):
-            raise SystemExit(f"--lambda-index out of range [0, {n_l-1}]")
-        l_range = [args.lambda_index]
-    else:
-        l_range = list(range(n_l))
-
-    os.makedirs(args.out_dir, exist_ok=True)
-
-    print(f"Opening {args.npz} (mmap) ...")
-    npz = np.load(args.npz, mmap_mode="r")
-
-    total_tasks = []
-    for l in l_range:
-        for i in range(n_i):
-            for j in range(n_j):
-                if only_ij is not None and (i, j) != only_ij:
+    total = n_dm32 * n_prec
+    with tqdm(total=total, desc="Triangles") as pbar:
+        for i in range(n_dm32):
+            for j in range(n_prec):
+                out_path = os.path.join(
+                    TRIANGLES_DIR, f"triangle_i{i:02d}_j{j:02d}.jpg")
+                if os.path.exists(out_path):
+                    pbar.update(1)
                     continue
-                total_tasks.append((l, i, j))
-
-    t0 = time.time()
-    rendered = 0
-    skipped = 0
-    with tqdm(total=len(total_tasks), desc="Triangles") as pbar:
-        for (l, i, j) in total_tasks:
-            out_path = os.path.join(
-                args.out_dir,
-                f"triangle_i{i:02d}_j{j:02d}_l{l:02d}.jpg")
-            if os.path.exists(out_path):
-                skipped += 1
+                draw_triangle(data, i, j, out_path)
                 pbar.update(1)
-                continue
-            prefix = _grid_key_prefix(lambdas[l], precs[j], dm32s[i])
-            draw_triangle(npz, prefix, out_path)
-            rendered += 1
-            pbar.update(1)
 
-    dt = time.time() - t0
-    print(f"Done. Rendered {rendered}, skipped {skipped}. Took {dt:.1f}s "
-          f"({dt / max(rendered, 1):.2f}s/triangle when rendering).")
-    print(f"Output: {args.out_dir}")
+    print(f"Done. JPEGs in {TRIANGLES_DIR}")
 
 
 if __name__ == "__main__":

@@ -113,13 +113,12 @@
             id="slider-lambda"
             min="0" max="10" step="1" value="5"
             style="--fill: 50%;"
-            title="Placeholder — λ variation not yet active"
+            aria-label="λ offset between NO and IO mass-ordering assumptions"
           />
           <div class="slider-range-labels">
             <span>0.115</span>
             <span>0.125</span>
           </div>
-          <p class="lambda-placeholder-note">Placeholder &mdash; &lambda; variation not yet active</p>
         </div>
 
         <div class="generate-wrap">
@@ -212,7 +211,7 @@
 
   <!-- ══════════════════════════════════════════ BOTTOM NAV ══ -->
   <nav id="bottom-nav">
-    <a class="tab" href="https://arxiv.org/" target="_blank" rel="noopener noreferrer" id="arxiv-link" title="arXiv paper (link to be updated on release)"><i class="ti ti-file-text"></i> arXiv</a>
+    <a class="tab" href="https://arxiv.org/abs/2606.14121" target="_blank" rel="noopener noreferrer" id="arxiv-link" title="arXiv paper"><i class="ti ti-file-text"></i> arXiv</a>
     <a class="tab" href="https://novaexperiment.fnal.gov" target="_blank" rel="noopener noreferrer"><i class="ti ti-atom"></i> NOvA</a>
     <a class="tab" href="https://novaexperiment.fnal.gov/data-releases/" target="_blank" rel="noopener noreferrer"><i class="ti ti-database"></i> Data Releases</a>
   </nav>
@@ -223,10 +222,14 @@
     'use strict';
 
     // ── Global state ───────────────────────────────────────────
-    let gridManifest = [], bfData = [], bfGrid2D = [];
-    let dm32Unique = [], precUnique = [];
+    let gridManifest = [], bfData = [], bfGrid3D = [];
+    // bfGrid3D[l][i][j] = CSV row object
+    let manifestByLIJ = [];
+    // manifestByLIJ[l][i][j] = manifest entry
+    let dm32Unique = [], precUnique = [], lambdaUnique = [];
     let dm32Min, dm32Max, precMin, precMax;
     let currentDm32 = null, currentPrecision = null;
+    let currentLambdaIdx = 0;
     let triangleImg = null;
     let imageRequestId = 0;
     let dataReady = false;
@@ -244,16 +247,23 @@
     document.addEventListener('DOMContentLoaded', () => setControlsEnabled(false));
 
     // ── Sigma contour thresholds (log₁₀ BF values for ±1/2/3σ) ──
+    // Derived by inverting bf_to_sigma(bf, two_sided=True) from the pipeline:
+    //   sigma=1 → BF=2.1515 → log10=0.3327
+    //   sigma=2 → BF=20.978 → log10=1.3218
+    //   sigma=3 → BF=369.40 → log10=2.5675
     const SIGMA_CONTOUR_THRESHOLDS = [
       { sigma:  3, log10_bf:  2.5675 },
-      { sigma:  2, log10_bf:  1.3420 },
-      { sigma:  1, log10_bf:  0.8344 },
+      { sigma:  2, log10_bf:  1.3218 },
+      { sigma:  1, log10_bf:  0.3327 },
       { sigma:  0, log10_bf:  0      },
-      { sigma: -1, log10_bf: -0.8344 },
-      { sigma: -2, log10_bf: -1.3420 },
+      { sigma: -1, log10_bf: -0.3327 },
+      { sigma: -2, log10_bf: -1.3218 },
       { sigma: -3, log10_bf: -2.5675 },
     ];
     const LAMBDA_IO_OFFSET = 0.12;
+
+    // ── cmc.roma_r colorscale (sampled from Python cmcrameri package, 64 stops) ──
+    const ROMA_R_COLORSCALE = [[0.0,"rgb(2,48,152)"],[0.0159,"rgb(10,56,155)"],[0.0317,"rgb(16,64,158)"],[0.0476,"rgb(21,71,162)"],[0.0635,"rgb(24,79,165)"],[0.0794,"rgb(27,86,168)"],[0.0952,"rgb(29,93,171)"],[0.1111,"rgb(32,99,174)"],[0.127,"rgb(34,106,177)"],[0.1429,"rgb(36,112,179)"],[0.1587,"rgb(38,119,182)"],[0.1746,"rgb(40,125,185)"],[0.1905,"rgb(43,131,188)"],[0.2063,"rgb(46,138,190)"],[0.2222,"rgb(49,144,193)"],[0.2381,"rgb(52,150,195)"],[0.254,"rgb(58,158,199)"],[0.2698,"rgb(63,165,201)"],[0.2857,"rgb(69,172,204)"],[0.3016,"rgb(76,179,206)"],[0.3175,"rgb(84,186,209)"],[0.3333,"rgb(93,192,211)"],[0.3492,"rgb(102,199,212)"],[0.3651,"rgb(112,205,214)"],[0.381,"rgb(123,211,215)"],[0.3968,"rgb(133,217,215)"],[0.4127,"rgb(144,221,214)"],[0.4286,"rgb(154,226,213)"],[0.4444,"rgb(164,229,211)"],[0.4603,"rgb(173,231,207)"],[0.4762,"rgb(181,233,203)"],[0.4921,"rgb(188,234,198)"],[0.5079,"rgb(196,233,190)"],[0.5238,"rgb(201,232,182)"],[0.5397,"rgb(205,230,173)"],[0.5556,"rgb(208,226,163)"],[0.5714,"rgb(209,222,152)"],[0.5873,"rgb(210,216,140)"],[0.6032,"rgb(209,210,129)"],[0.619,"rgb(208,203,117)"],[0.6349,"rgb(206,196,105)"],[0.6508,"rgb(203,188,95)"],[0.6667,"rgb(200,180,85)"],[0.6825,"rgb(196,172,76)"],[0.6984,"rgb(193,164,68)"],[0.7143,"rgb(189,156,61)"],[0.7302,"rgb(186,149,56)"],[0.746,"rgb(183,142,51)"],[0.7619,"rgb(178,133,45)"],[0.7778,"rgb(175,126,41)"],[0.7937,"rgb(172,120,38)"],[0.8095,"rgb(169,113,35)"],[0.8254,"rgb(166,107,32)"],[0.8413,"rgb(163,101,29)"],[0.8571,"rgb(160,94,26)"],[0.873,"rgb(156,88,24)"],[0.8889,"rgb(153,81,21)"],[0.9048,"rgb(150,74,18)"],[0.9206,"rgb(146,67,15)"],[0.9365,"rgb(142,60,12)"],[0.9524,"rgb(138,52,9)"],[0.9683,"rgb(134,43,6)"],[0.9841,"rgb(130,34,3)"],[1.0,"rgb(125,23,0)"]];
 
     // ── Helpers ────────────────────────────────────────────────
     function padTwo(n) { return String(n).padStart(2, '0'); }
@@ -263,20 +273,22 @@
       return Number(x).toFixed(dp);
     }
 
+    function exactIndex(value, axis) {
+      if (!axis || axis.length === 0) return 0;
+      if (axis.length === 1) return 0;
+      const step = (axis[axis.length - 1] - axis[0]) / (axis.length - 1);
+      const k = Math.round((value - axis[0]) / step);
+      return Math.max(0, Math.min(axis.length - 1, k));
+    }
+
     function getNearestGridPoint(dm32, precision) {
       if (dm32 == null || precision == null || !isFinite(dm32) || !isFinite(precision)) return null;
-      if (!gridManifest.length) return null;
-      const dr = dm32Max - dm32Min || 1;
-      const pr = precMax - precMin || 1;
-      let best = null, bestDist = Infinity;
-      for (const e of gridManifest) {
-        const d = Math.sqrt(
-          ((e.dm32_no - dm32) / dr) ** 2 +
-          ((e.precision - precision) / pr) ** 2
-        );
-        if (d < bestDist) { bestDist = d; best = e; }
-      }
-      return best;
+      if (!manifestByLIJ.length) return null;
+      const i = exactIndex(dm32, dm32Unique);
+      const j = exactIndex(precision, precUnique);
+      const slice = manifestByLIJ[currentLambdaIdx];
+      if (!slice || !slice[i] || !slice[i][j]) return null;
+      return slice[i][j];
     }
 
     // ── Metric cards ───────────────────────────────────────────
@@ -299,7 +311,8 @@
         return;
       }
 
-      const csvRow  = (bfGrid2D[entry.i] && bfGrid2D[entry.i][entry.j]) || null;
+      const lSlice = bfGrid3D[entry.l] || null;
+      const csvRow  = (lSlice && lSlice[entry.i] && lSlice[entry.i][entry.j]) || null;
       const fracRmse = csvRow && isFinite(csvRow.frac_rmse) ? csvRow.frac_rmse : null;
       fracRmseEl.textContent = fracRmse != null ? fracRmse.toFixed(3) : '—';
       fracRmseEl.style.color = fracRmse != null ? '#3B82F6' : '#1A2332';
@@ -522,24 +535,20 @@
     }
 
     // ── Heatmap ────────────────────────────────────────────────
-    function initHeatmap() {
-      // Build O(N) lookup: "dm32_toFixed6|prec_toFixed6" → log10_bf
-      const lookup = new Map();
-      for (const row of bfData) {
-        const key = Number(row.dm32_no).toFixed(6) + '|' + Number(row.precision).toFixed(6);
-        const v = Number(row.log10_bf);
-        lookup.set(key, isFinite(v) ? v : (v > 0 ? 10 : -10));
-      }
+    // Build z matrix + contour traces + pending label data for one λ slice.
+    function buildHeatmapTraces(lambdaIdx) {
+      const slice = manifestByLIJ[lambdaIdx] || [];
 
       // Build z[j][i]: rows = precUnique (y), columns = dm32Unique (x)
-      const zArr = precUnique.map(prec => {
-        return dm32Unique.map(dm32 => {
-          const key = dm32.toFixed(6) + '|' + prec.toFixed(6);
-          return lookup.get(key) ?? 0;
+      const zArr = precUnique.map((_, j) => {
+        return dm32Unique.map((_, i) => {
+          const entry = slice[i] && slice[i][j];
+          if (!entry) return 0;
+          const v = Number(entry.log10_bf);
+          return isFinite(v) ? v : (v > 0 ? 10 : -10);
         });
       });
 
-      // ── Sigma contour computation via d3.contours() ────────────
       const nx = dm32Unique.length;
       const ny = precUnique.length;
 
@@ -631,9 +640,9 @@
           type: 'scatter', mode: 'lines',
           x: xPts, y: yPts,
           line: {
-            color: 'rgba(70,70,70,0.65)',
-            width: sigma === 0 ? 1.0 : 1.5,
-            dash: 'dot'
+            color: sigma === 0 ? '#666666' : '#333333',
+            width: 1.5,
+            dash: sigma === 0 ? '1px,5px' : 'dot'
           },
           showlegend: false, hoverinfo: 'none'
         });
@@ -650,7 +659,7 @@
           const dy_data = gridToPrec(p2[1]) - gridToPrec(p1[1]);
           const labelText = sigma > 0 ? `NO ${sigma}σ`
                           : sigma < 0 ? `IO ${Math.abs(sigma)}σ`
-                          : 'NO | IO';
+                          : '↓ IO | NO ↑';
           pendingLabels.push({
             x: clampDm32(gridToDm32(lxi)),
             y: clampPrec(gridToPrec(lyi)),
@@ -671,49 +680,65 @@
         showlegend: false, hoverinfo: 'skip'
       };
 
-      Plotly.newPlot('heatmap-plot', [{
+      const heatmapTrace = {
         type: 'heatmap',
         z: zArr,
         x: dm32Unique,
         y: precUnique,
-        colorscale: 'RdBu',
-        reversescale: true,
+        colorscale: ROMA_R_COLORSCALE,
+        reversescale: false,
         zmin: -5,
         zmax: 5,
         colorbar: {
-          title: { text: 'log₁₀(BF)', side: 'right' },
+          title: { text: 'log₁₀ BF (NO/IO)  [IO ← 0 → NO]', side: 'right' },
           tickfont:  { size: 13, family: 'Inter, sans-serif', color: '#5A6A7E' },
-          titlefont: { size: 14, family: 'Inter, sans-serif', color: '#5A6A7E' },
+          titlefont: { size: 12, family: 'Inter, sans-serif', color: '#5A6A7E' },
           thickness: 14, outlinewidth: 0, xpad: 6
         }
-      }, ...contourTraces, dummyTrace], {
+      };
+
+      return {
+        traces: [heatmapTrace, ...contourTraces, dummyTrace],
+        pendingLabels,
+        dm32Span,
+        precSpan
+      };
+    }
+
+    function _heatmapLayout() {
+      const nx = dm32Unique.length;
+      const ny = precUnique.length;
+      return {
         xaxis: {
-          title: { text: 'Δm²₃₂ (NO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
+          title: { text: 'JUNO Δm²₃₂ (NO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
           tickfont: { size: 13 }, color: '#5A6A7E',
           showgrid: false, zeroline: false,
           ticks: 'outside', ticklen: 5,
           linecolor: '#5A6A7E', linewidth: 1,
           range: [dm32Unique[0], dm32Unique[nx - 1]],
-          autorange: false
+          autorange: false,
+          minor: { ticks: 'outside', ticklen: 3, nticks: 25 }
         },
         xaxis2: {
           overlaying: 'x', side: 'top',
           range: [dm32Unique[0] + LAMBDA_IO_OFFSET, dm32Unique[nx - 1] + LAMBDA_IO_OFFSET],
-          title: { text: 'Δm²₃₂ (IO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
+          title: { text: 'JUNO Δm²₃₂ (IO) [×10⁻³ eV²]', font: { size: 15 }, standoff: 6 },
           tickformat: '.2f',
           tickfont: { size: 13 }, color: '#5A6A7E',
           showgrid: false, zeroline: false,
           ticks: 'outside', ticklen: 5,
-          linecolor: '#5A6A7E', linewidth: 1
+          linecolor: '#5A6A7E', linewidth: 1,
+          minor: { ticks: 'outside', ticklen: 3, nticks: 25 }
         },
         yaxis: {
-          title: { text: 'Measurement Precision on |Δm²₃₂| [%]', font: { size: 15 }, standoff: 6 },
+          title: { text: 'JUNO precision [%]', font: { size: 15 }, standoff: 6 },
           tickfont: { size: 13 }, color: '#5A6A7E',
           showgrid: false, zeroline: false,
           ticks: 'outside', ticklen: 5,
           linecolor: '#5A6A7E', linewidth: 1, mirror: true,
           range: [precUnique[0], precUnique[ny - 1]],
-          autorange: false
+          autorange: false,
+          minor: { ticks: 'outside', ticklen: 3, nticks: 10 }
         },
         autosize: true,
         margin: { l: 65, r: 75, t: 58, b: 62 },
@@ -722,44 +747,60 @@
         font: { family: 'Inter, sans-serif', color: '#5A6A7E' },
         annotations: [],
         shapes: []
-      }, { displayModeBar: false, staticPlot: true })
-      .then(() => {
-        // Compute per-label textangle using actual pixel extents of the rendered axes.
-        const gd = document.getElementById('heatmap-plot');
-        const xPixLen = (gd._fullLayout && gd._fullLayout.xaxis._length) || 400;
-        const yPixLen = (gd._fullLayout && gd._fullLayout.yaxis._length) || 300;
-        const xPxPerUnit = xPixLen / dm32Span;
-        const yPxPerUnit = yPixLen / precSpan;
+      };
+    }
 
-        const finalAnnotations = pendingLabels.map(lb => {
-          // Screen y increases downward, so negate dy_data to get screen direction.
-          const angleDeg = Math.atan2(
-            -lb.dy_data * yPxPerUnit,
-             lb.dx_data * xPxPerUnit
-          ) * 180 / Math.PI;
-          return {
-            x: lb.x, y: lb.y,
-            text: lb.text,
-            showarrow: false,
-            textangle: angleDeg,
-            font: { size: 12, color: 'rgba(55,55,55,0.9)', family: 'Inter, sans-serif' },
-          };
-        });
+    function _applyPostRender(build) {
+      const gd = document.getElementById('heatmap-plot');
+      const xPixLen = (gd._fullLayout && gd._fullLayout.xaxis._length) || 400;
+      const yPixLen = (gd._fullLayout && gd._fullLayout.yaxis._length) || 300;
+      const xPxPerUnit = xPixLen / build.dm32Span;
+      const yPxPerUnit = yPixLen / build.precSpan;
 
-        // Align colorbar exactly with plot area using the y-axis domain (paper coords).
-        const ydom = gd._fullLayout.yaxis.domain;  // [bottom, top] in paper coords
-        const yMid = (ydom[0] + ydom[1]) / 2;
-        const yLen = ydom[1] - ydom[0];
+      const finalAnnotations = build.pendingLabels.map(lb => {
+        const angleDeg = Math.atan2(
+          -lb.dy_data * yPxPerUnit,
+           lb.dx_data * xPxPerUnit
+        ) * 180 / Math.PI;
+        return {
+          x: lb.x, y: lb.y,
+          text: lb.text,
+          showarrow: false,
+          textangle: angleDeg,
+          font: { size: 12, color: 'rgba(55,55,55,0.9)', family: 'Inter, sans-serif' },
+        };
+      });
 
-        return Plotly.relayout(gd, { annotations: finalAnnotations })
-          .then(() => Plotly.restyle(gd, {
-            'colorbar.lenmode': 'paper',
-            'colorbar.len': yLen,
-            'colorbar.yanchor': 'middle',
-            'colorbar.y': yMid
-          }, [0]));
-      })
-      .then(() => updateHeatmapCrosshair(currentDm32, currentPrecision));
+      const ydom = gd._fullLayout.yaxis.domain;
+      const yMid = (ydom[0] + ydom[1]) / 2;
+      const yLen = ydom[1] - ydom[0];
+
+      return Plotly.relayout(gd, { annotations: finalAnnotations })
+        .then(() => Plotly.restyle(gd, {
+          'colorbar.lenmode': 'paper',
+          'colorbar.len': yLen,
+          'colorbar.yanchor': 'middle',
+          'colorbar.y': yMid
+        }, [0]));
+    }
+
+    function initHeatmap() {
+      const build = buildHeatmapTraces(currentLambdaIdx);
+      return Plotly.newPlot('heatmap-plot', build.traces, _heatmapLayout(),
+                            { displayModeBar: false, staticPlot: true })
+        .then(() => _applyPostRender(build))
+        .then(() => updateHeatmapCrosshair(currentDm32, currentPrecision));
+    }
+
+    function renderHeatmap(lambdaIdx) {
+      const build = buildHeatmapTraces(lambdaIdx);
+      // Plotly.react reuses the existing plot, only diffing changes — keeps state
+      // (axis pan/zoom would persist if not staticPlot). Layout passed fresh so
+      // annotations reset; _applyPostRender re-fills with new contour labels.
+      return Plotly.react('heatmap-plot', build.traces, _heatmapLayout(),
+                          { displayModeBar: false, staticPlot: true })
+        .then(() => _applyPostRender(build))
+        .then(() => updateHeatmapCrosshair(currentDm32, currentPrecision));
     }
 
     // ── Resize handler ────────────────────────────────────────
@@ -814,14 +855,33 @@
         updateHeatmapCrosshair(currentDm32, currentPrecision);
       });
 
-      // λ slider — display only, no physics effect
-      const LAMBDA_VALUES = Array.from({length: 11}, (_, i) => 0.115 + i * 0.001);
+      // λ slider — active: swaps the heatmap z-slice and metric cards.
       const sliderLambda = document.getElementById('slider-lambda');
       const lambdaValDisplay = document.getElementById('lambda-val');
+      const nLambda = lambdaUnique.length;
+      sliderLambda.min = 0;
+      sliderLambda.max = nLambda - 1;
+      sliderLambda.step = 1;
+      sliderLambda.value = currentLambdaIdx;
+      lambdaValDisplay.textContent = lambdaUnique[currentLambdaIdx].toFixed(3);
+      sliderLambda.style.setProperty('--fill',
+        `${(currentLambdaIdx / Math.max(1, nLambda - 1)) * 100}%`);
+
+      const lambdaLabels = sliderLambda.closest('.slider-group')
+        .querySelectorAll('.slider-range-labels span');
+      if (lambdaLabels.length >= 2) {
+        lambdaLabels[0].textContent = lambdaUnique[0].toFixed(3);
+        lambdaLabels[1].textContent = lambdaUnique[nLambda - 1].toFixed(3);
+      }
+
       sliderLambda.addEventListener('input', () => {
-        const idx = parseInt(sliderLambda.value);
-        lambdaValDisplay.textContent = LAMBDA_VALUES[idx].toFixed(3);
-        sliderLambda.style.setProperty('--fill', `${(idx / 10) * 100}%`);
+        const idx = parseInt(sliderLambda.value, 10);
+        currentLambdaIdx = idx;
+        lambdaValDisplay.textContent = lambdaUnique[idx].toFixed(3);
+        sliderLambda.style.setProperty('--fill',
+          `${(idx / Math.max(1, nLambda - 1)) * 100}%`);
+        renderHeatmap(idx);
+        updateMetricCards(getNearestGridPoint(currentDm32, currentPrecision));
       });
     }
 
@@ -832,8 +892,13 @@
         const nearest = getNearestGridPoint(currentDm32, currentPrecision);
         if (!nearest) return;
 
-        const path = '../../triangles/v8/triangle_i' + padTwo(nearest.i) +
-                     '_j' + padTwo(nearest.j) + '.jpg';
+        // Manifest entry's `png` field is the single source of truth — it
+        // already encodes (i, j, l) and the v9 subfolder, and can be swapped
+        // to absolute URLs with no code change.
+        const pngField = nearest.png || '';
+        const path = /^https?:\/\//i.test(pngField)
+          ? pngField
+          : '../../' + pngField;
         const container = document.getElementById('triangle-container');
         const subtitle  = document.querySelector('.col-center .card-subtitle');
 
@@ -905,8 +970,8 @@
     async function loadData() {
       try {
         const [csvText, jsonText] = await Promise.all([
-          fetch('../../data/bf_grid.csv').then(r => { if (!r.ok) throw new Error('bf_grid.csv ' + r.status); return r.text(); }),
-          fetch('../../data/manifest.json').then(r => { if (!r.ok) throw new Error('manifest.json ' + r.status); return r.text(); })
+          fetch('../../data/full/bf_grid.csv').then(r => { if (!r.ok) throw new Error('bf_grid.csv ' + r.status); return r.text(); }),
+          fetch('../../data/full/manifest.json').then(r => { if (!r.ok) throw new Error('manifest.json ' + r.status); return r.text(); })
         ]);
 
         // Parse CSV
@@ -919,25 +984,38 @@
           return obj;
         });
 
-        // Build sparse 2D lookup bfGrid2D[i][j]
-        bfGrid2D = [];
+        // Build sparse 3D lookup bfGrid3D[l][i][j]
+        bfGrid3D = [];
         for (const row of bfData) {
-          const i = row.i, j = row.j;
-          if (!bfGrid2D[i]) bfGrid2D[i] = {};
-          bfGrid2D[i][j] = row;
+          const l = row.l, i = row.i, j = row.j;
+          if (!bfGrid3D[l]) bfGrid3D[l] = [];
+          if (!bfGrid3D[l][i]) bfGrid3D[l][i] = {};
+          bfGrid3D[l][i][j] = row;
         }
 
         // Parse manifest (sanitise non-finite JSON tokens)
         const safeJson = jsonText.replace(/-?Infinity|NaN/g, 'null');
         gridManifest = JSON.parse(safeJson);
 
-        // Derive unique sorted axes
-        dm32Unique = [...new Set(gridManifest.map(e => e.dm32_no))].sort((a, b) => a - b);
-        precUnique = [...new Set(gridManifest.map(e => e.precision))].sort((a, b) => a - b);
+        // Derive unique sorted axes from the manifest
+        lambdaUnique = [...new Set(gridManifest.map(e => e.lambda))].sort((a, b) => a - b);
+        dm32Unique   = [...new Set(gridManifest.map(e => e.dm32_no))].sort((a, b) => a - b);
+        precUnique   = [...new Set(gridManifest.map(e => e.precision))].sort((a, b) => a - b);
         dm32Min = dm32Unique[0];
         dm32Max = dm32Unique[dm32Unique.length - 1];
         precMin = precUnique[0];
         precMax = precUnique[precUnique.length - 1];
+
+        // Build 3D manifest index manifestByLIJ[l][i][j]
+        manifestByLIJ = [];
+        for (const e of gridManifest) {
+          if (!manifestByLIJ[e.l]) manifestByLIJ[e.l] = [];
+          if (!manifestByLIJ[e.l][e.i]) manifestByLIJ[e.l][e.i] = [];
+          manifestByLIJ[e.l][e.i][e.j] = e;
+        }
+
+        // Default λ index → midpoint
+        currentLambdaIdx = Math.floor(lambdaUnique.length / 2);
 
         // Initial slider positions — grid midpoints
         const midDm32 = dm32Unique[Math.floor(dm32Unique.length / 2)];
@@ -1016,8 +1094,8 @@
       {
         target: '.heatmap-card',
         title: 'NOvA Sensitivity Heatmap',
-        text: 'Colour shows log₁₀(Bayes factor): blue means NOvA favours normal mass ' +
-              'ordering (NO), red favours inverted ordering (IO), white is ambiguous. ' +
+        text: 'Colour shows log₁₀(Bayes factor): red means NOvA favours normal mass ' +
+              'ordering (NO), blue favours inverted ordering (IO), white is no ordering preference. ' +
               'Contour lines mark ±1σ, ±2σ, and ±3σ equivalent significance. ' +
               'Drag the crosshair or use the sliders to explore.'
       },
@@ -1026,14 +1104,14 @@
         title: 'NOvA Posterior Summary',
         text: 'Click "Generate Posterior Summary" to load the corner plot showing NOvA’s ' +
               'marginalised posteriors for four oscillation parameters at the selected ' +
-              'constraint. Blue = normal ordering, red = inverted ordering. ' +
-              'The plot only updates on button press.'
+              'constraint. Blue = normal ordering, red = inverted ordering in these posterior plots.' +
+              'The plot updates on button press or when crosshair is moved.'
       },
       {
         target: '#bottom-nav',
         title: 'Further Reading',
         text: 'Links to the NOvA+JUNO arXiv paper, the NOvA experiment website, and ' +
-              'the public data release accompanying this result.'
+              'NOvA\'s public data releases.'
       }
     ];
 
